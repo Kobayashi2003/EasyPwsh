@@ -1,0 +1,1 @@
+﻿# Write-Ascii -InputObject ">>> easy pwsh <<<" -ForegroundColor DarkCyan
