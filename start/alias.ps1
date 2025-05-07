@@ -1,4 +1,6 @@
 ﻿$alias_map = @{
+    'l' = 'ls'
+    'c' = 'clear'
     'open' = 'explorer'
 }
 
