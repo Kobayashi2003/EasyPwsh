@@ -104,8 +104,7 @@
         }
     }
 
-    while ($path.Length -gt 30) {
-        # $path = "..\" + $path.Substring($path.LastIndexOf("\") + 1)
+    while ($path.Length -gt 30 -and $path.replace("..\", "").IndexOf("\") -ne -1) {
         $path = "..\" + $path.Substring($path.IndexOf("\", $path.IndexOf("\") + 1) + 1)
     }
     $promptString += "$esc[1;33m$path$esc[0m "

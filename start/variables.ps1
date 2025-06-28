@@ -49,30 +49,76 @@ $global:APPS_ALIAS = $( if (-not $SET_APPS_ALIAS) { @{} } else {
 
 $global:SCOOP_APPLICATION_MAIN = $( if (-not $SCOOP_MAIN_FLAG) { @() } else {
 @(
-    '7zip',     'aria2',    'bat',
-    'chafa',    'fd',       'ffmpeg',
-    'fzf',      'git',      'gsudo',
-    'lf',       'prince',   'ripgrep',
-    'scrcpy',   'sudo',     'vim',
-    'zoxide',   'miniconda3', 'yazi',
-    'pandoc',   'latex',    'postgresql',
-    'jq',       'poppler',  'imagemagick'
+    'vim',          # Powerful text editor
+    'git',          # Distributed version control system
+    '7zip',         # Archive manager and compressor
+    'fd',           # Fast and user-friendly alternative to find
+    'bat',          # Cat clone with syntax highlighting and Git integration
+    'fzf',          # Command-line fuzzy finder
+    'yazi',         # Blazing fast terminal file manager
+    'zoxide',       # Smart cd command that learns your habits
+    'ripgrep',      # Fast text search tool using regex
+    'gsudo',        # Sudo implementation for Windows
+    'miniconda3',   # Minimal Python distribution with package manager
+    'fastfetch'     # Fast system information tool (alternative to neofetch)
+
+    # 'jq',           # Lightweight JSON processor
+    # 'ffmpeg',       # Complete multimedia framework for audio/video processing
+    # 'latex',        # Document typesetting system
+    # 'pandoc',       # Universal document converter
+    # 'prince',       # HTML to PDF converter
+    # 'scrcpy',       # Android screen mirroring and control
+    # 'poppler',      # PDF rendering utilities
+    # 'redis',        # In-memory data structure store and database
+    # 'postgresql',   # Advanced open-source relational database
+    # 'ngrok',        # Secure tunnel to localhost for exposing local services to the internet
+
+    # 'mysql',        # Popular open-source relational database management system
+    # 'aria2',        # Multi-protocol download utility
+    # 'lf',           # Terminal file manager
+    # 'sudo',         # Run commands with elevated privileges
+    # 'chafa',        # Image to text converter for terminal
+    # 'imagemagick'   # Image manipulation and conversion toolkit
 )})
 
 $global:SCOOP_APPLICATION_EXTRAS = $( if (-not $SCOOP_EXTRAS_FLAG) { @() } else {
 @(
-    'altsnap',          'bandizip',
-    'everything',       'imageglass',
-    'moonlight',        'mpv',
-    'cheat-engine',     'posh-git',
-    'putty',            'quicklook',
-    'recuva',           'sunshine',
-    'vscode',           'winmerge'
+    'altsnap',          # Window management tool for easy resizing/moving
+    'quicklook',        # Quick file preview tool (like macOS)
+    'imageglass',       # Lightweight and versatile image viewer
+    'everything',       # Instant file and folder search engine
+    'bandizip',         # Archive manager with high compression ratio
+    'posh-git',         # PowerShell Git integration with enhanced prompts
+    'lazygit',          # Simple terminal UI for git commands
+    'powertoys'         # Set of tools for Windows to enhance productivity
+
+    # 'cursor',           # AI-powered code editor
+    # 'vscode',           # Lightweight but powerful source code editor
+
+    # 'vlc',              # Free and open-source media player
+    # 'mpv',              # Free and open-source media player
+    # 'winmerge'          # Visual text file comparison and merging tool
+    # 'networkmanager',   # Network connection management tool
+    # 'registry-finder',  # Search and edit Windows registry entries
+    # 'geekuninstaller',  # Advanced uninstaller for complete software removal
+    # 'wiztree',          # Disk usage analyzer and file manager
+    # 'fileligtht',       # Disk usage visualization tool showing space consumption
+    # 'ccleaner',         # System optimization and cleaning tool
+    # 'hwmonitor',        # Hardware monitoring tool for temperature, voltage, and fan speeds
+    # 'crystaldiskinfo',  # Hard disk health monitoring and S.M.A.R.T. analysis tool
+    # 'crystaldiskmark',  # Disk benchmark utility for testing storage performance
+
+    # 'moonlight',        # NVIDIA GameStream client for game streaming
+    # 'sunshine',         # Self-hosted game streaming server
+    # 'cheat-engine',     # Memory scanner and debugger for games
+
+    # 'recuva',           # File recovery software
+    # 'putty',            # SSH and telnet client for Windows
 )})
 
 $global:SCOOP_APPLICATION_VERSION = $( if (-not $SCOOP_VERSION_FLAG) { @() } else {
 @(
-    'tdm-gcc'
+    'tdm-gcc'           # TDM-GCC compiler collection for Windows
 )})
 
 $global:SCOOP_APPLICATION = $(if (-not $SCOOP_CHECK_INSTALL) { @() } else {

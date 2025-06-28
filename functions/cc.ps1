@@ -1,0 +1,1 @@
+﻿function cc { if ($args[0]) { cd $args[0] && clear } else { cd && clear } }
