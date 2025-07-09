@@ -9,7 +9,7 @@ if (-not (Get-Command "mpv" -ErrorAction SilentlyContinue)) {
     return
 }
 
-function global:show-video {
+function global:view-video {
     param($path)
     & mpv --really-quiet --vo=tct $path
 }

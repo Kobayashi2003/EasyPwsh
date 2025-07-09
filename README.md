@@ -28,7 +28,7 @@
 
 # Usage
 
-- before you start, you should set your ExecutionPolicy to `RemoteSigned` or `AllSigned`:
+- Before you start, you should set your ExecutionPolicy to `RemoteSigned` or `AllSigned`:
 
 ```powershell
 set-executionpolicy -scope currentuser -executionpolicy remotesigned
@@ -36,7 +36,7 @@ set-executionpolicy -scope currentuser -executionpolicy remotesigned
 set-executionpolicy -scope currentuser -executionpolicy allsigned
 ``` 
 
-- than download easy-pwsh to your local directory, and run it:
+- Then download easy-pwsh to your local directory, and run it:
 
 ```powershell
 > cd easy-pwsh
