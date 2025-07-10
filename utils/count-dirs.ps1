@@ -42,8 +42,12 @@ if ($Depth) {
     $getChildItemParams.Recurse = $true
 }
 
+$dirs = Get-ChildItem @getChildItemParams
+
+# Convert ExcludePath to full paths for proper comparison
+$excludeFullPaths = @()
 if ($ExcludePath) {
-    $getChildItemParams.Exclude = $ExcludePath
+    $excludeFullPaths = $ExcludePath | ForEach-Object { (Resolve-Path -Path $_ -ErrorAction SilentlyContinue).Path }
 }
 
 # Convert Path to full paths for base depth calculation
@@ -52,9 +56,17 @@ foreach ($p in $Path) {
     $basePaths += (Resolve-Path $p).Path
 }
 
-$dirs = Get-ChildItem @getChildItemParams
-
 foreach ($dir in $dirs) {
+    # Skip directories in excluded paths
+    $shouldExclude = $false
+    foreach ($excludePath in $excludeFullPaths) {
+        if ($dir.FullName.StartsWith($excludePath, [StringComparison]::OrdinalIgnoreCase)) {
+            $shouldExclude = $true
+            break
+        }
+    }
+    if ($shouldExclude) { continue }
+
     $dirCount++
 
     # Calculate depth based on directory path segments compared to base path

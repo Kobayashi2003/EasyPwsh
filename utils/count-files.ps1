@@ -46,13 +46,25 @@ if ($Depth) {
     $getChildItemParams.Recurse = $true
 }
 
-if ($ExcludePath) {
-    $getChildItemParams.Exclude = $ExcludePath
-}
-
 $files = Get-ChildItem @getChildItemParams
 
+# Convert ExcludePath to full paths for proper comparison
+$excludeFullPaths = @()
+if ($ExcludePath) {
+    $excludeFullPaths = $ExcludePath | ForEach-Object { (Resolve-Path -Path $_ -ErrorAction SilentlyContinue).Path }
+}
+
 foreach ($file in $files) {
+    # Skip files in excluded paths
+    $shouldExclude = $false
+    foreach ($excludePath in $excludeFullPaths) {
+        if ($file.FullName.StartsWith($excludePath, [StringComparison]::OrdinalIgnoreCase)) {
+            $shouldExclude = $true
+            break
+        }
+    }
+    if ($shouldExclude) { continue }
+
     $extension = $file.Extension.TrimStart(".")
 
     if (($FileTypes -and $extension -notin $FileTypes) -or
