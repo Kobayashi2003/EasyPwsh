@@ -145,7 +145,8 @@ Set-PSReadLineKeyHandler -Key Ctrl+b `
                          -LongDescription "Cursor" `
                          -ScriptBlock {
     [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-    [Microsoft.PowerShell.PSConsoleReadLine]::Insert('cursor -r')
+    # [Microsoft.PowerShell.PSConsoleReadLine]::Insert('cursor -r')
+    [Microsoft.PowerShell.PSConsoleReadLine]::Insert('code -r')
     [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
 }
 
