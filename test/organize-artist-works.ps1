@@ -29,11 +29,12 @@ $cnPatterns = @(
     '漢化', '汉化', '个人', '個人', '新桥月白日语社',
     '中文', '禁漫天堂', '重嵌', '漫遊中的蟲譯', '制作',
     '中国语', '中国語', '自用翻译', 'KK數位', '青文出版',
-    '火车站骑空团', '改图', '自嵌', '翻译', '机翻',
-    '如月工房', '中国翻訳', '中国翻译', 'chinese',
+    '火车站骑空团', '改图', '自嵌', '翻译', '机翻', '機翻',
+    '如月工房', '中国翻訳', '中国翻译', 'chinese', '240603去码',
     '未来數位', '冊語草堂', '52H里漫画组', '东方小吃店',
     '活力少女戰線', '風的工房', 'YUKI飛雪之城', '神猫出版社',
-    '悠月工房', '改圖', '指○奶茶步兵團'
+    '悠月工房', '改圖', '指○奶茶步兵團', '言耽社', 'eve去码',
+    '240203去码', 'ydrss整合', '裹之夢境'
 )
 
 # Japanese original patterns
@@ -72,7 +73,7 @@ function Organize-WorksFolder {
     Write-Host "`nProcessing works folder: $worksName" -ForegroundColor Yellow
 
     # Get all subdirectories except cn/jp/en
-    $allDirs = Get-ChildItem -Path $worksPath -Directory |
+    $allDirs = Get-ChildItem -LiteralPath $worksPath -Directory |
                Where-Object { $_.Name -notin @("cn", "jp", "en") }
 
     # Move Chinese translations
