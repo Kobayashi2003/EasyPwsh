@@ -38,8 +38,9 @@ Set-PSReadLineOption -MaximumHistoryCount 100000
 Set-PSReadLineOption -AddToHistoryHandler {
     param([string]$line)
 
-    $sensitive = "password|asplaintext|token|key|secret|galgame|eroi"
-    return ($line -notmatch $sensitive)
+    $sensitive = "password|asplaintext|token|key|secret"
+    # return ($line -notmatch $sensitive)
+    return $true
 }
 
 # prediction configuration

@@ -22,7 +22,7 @@ param (
 try {
     for ($i = 0; $i -lt $depth; $i++) {
         $dirsList = [System.Collections.ArrayList]::new()
-        $items = Get-ChildItem -Path $path
+        $items = Get-ChildItem -LiteralPath $path
         foreach ($item in $items) {
             if ($item -is [System.IO.DirectoryInfo]) {
                 $null = $dirsList.Add($item)
@@ -32,9 +32,9 @@ try {
             $dir = $dirsList[$j]
             Write-Host "Directory: $($dir.FullName)" -ForegroundColor Green
             $dirPath = $dir.FullName
-            $dirItems = Get-ChildItem -Path $dirPath
-            $dirItems | Foreach-Object {Write-Host "File: $($_.FullName)" -ForegroundColor Yellow}
-            $dirItems | forEach-Object { Move-Item -Path $_.FullName -Destination $path }
+            $dirItems = Get-ChildItem -LiteralPath $dirPath
+            $dirItems | Foreach-Object { Write-Host "File: $($_.FullName)" -ForegroundColor Yellow }
+            $dirItems | forEach-Object { Move-Item -LiteralPath $_.FullName -Destination $path }
         }
     }
     Write-Host "Files expanded: $path" -ForegroundColor Green
