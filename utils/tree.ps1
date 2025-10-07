@@ -3,6 +3,10 @@
     Displays directory structure in a tree-like format
 .DESCRIPTION
     This PowerShell script displays the directory structure in a tree-like format, similar to the Linux tree command.
+.PARAMETER Path
+    The path to display. Defaults to current directory.
+.PARAMETER DirectoryOnly
+    Only display directories, exclude files.
 .EXAMPLE
     PS> ./tree.ps1
     .
@@ -21,21 +25,37 @@
     ├── File2.txt
     └── Folder1
         └── SubFile1.txt
+.EXAMPLE
+    PS> ./tree.ps1 -DirectoryOnly
+    .
+    ├── Folder1
+    │   └── SubFolder1
+    └── Folder2
 .LINK
     https://github.com/YourGitHubUsername/PowerShell
 .NOTES
     Author: Your Name | License: CC0
 #>
 
+param (
+    [string]$Path = ".",
+    [switch]$DirectoryOnly
+)
+
 try {
     function Show-TreeView {
         param (
             [string]$Path = ".",
-            [int]$IndentLevel = 0
+            [int]$IndentLevel = 0,
+            [bool]$DirectoryOnly = $false
         )
 
         # $items = Get-ChildItem -Path $Path
         $items = Get-ChildItem -LiteralPath $Path
+
+        if ($DirectoryOnly) {
+            $items = $items | Where-Object { $_.PSIsContainer }
+        }
 
         foreach ($item in $items) {
             $indent = "│   " * $IndentLevel
@@ -49,14 +69,13 @@ try {
 
             if ($item.PSIsContainer) {
                 $newIndent = $IndentLevel + 1
-                Show-TreeView -Path $item.FullName -IndentLevel $newIndent
+                Show-TreeView -Path $item.FullName -IndentLevel $newIndent -DirectoryOnly $DirectoryOnly
             }
         }
     }
 
-    $startPath = if ($args.Count -gt 0) { $args[0] } else { "." }
-    Write-Host $startPath
-    Show-TreeView -Path $startPath
+    Write-Host $Path
+    Show-TreeView -Path $Path -DirectoryOnly $DirectoryOnly
     exit 0 # success
 } catch {
     "⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"
