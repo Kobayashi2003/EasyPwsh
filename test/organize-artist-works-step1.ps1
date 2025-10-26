@@ -13,9 +13,9 @@
 .PARAMETER Path
     Specifies the artist folder path to organize (e.g., "D:\Artists\ArtistName")
 .EXAMPLE
-    PS> ./organize-artist-works.ps1 "D:\Artists\ArtistName"
+    PS> ./organize-artist-works-step1.ps1 "D:\Artists\ArtistName"
 .EXAMPLE
-    PS> ./organize-artist-works.ps1 -Path "C:\Downloads\Artist"
+    PS> ./organize-artist-works-step1.ps1 -Path "C:\Downloads\Artist"
 #>
 
 param(
