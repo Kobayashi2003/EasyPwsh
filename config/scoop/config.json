@@ -1,0 +1,8 @@
+{
+  "global_path": "D:\\ScoopApp\\GlobalScoopApps",
+  "last_update": "2026-04-29T18:42:54.3756774+08:00",
+  "aria2-enabled": false,
+  "scoop_branch": "master",
+  "scoop_repo": "https://github.com/ScoopInstaller/Scoop",
+  "proxy": "127.0.0.1:7890"
+}

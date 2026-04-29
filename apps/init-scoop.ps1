@@ -116,6 +116,15 @@ if (!(Get-Command "scoop" -ErrorAction SilentlyContinue)) {
     }
 }
 
+if (Get-Command "scoop" -ErrorAction SilentlyContinue) {
+    $scoop_conf = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\scoop\config.json"
+    $scoop_conf_current_user = Join-Path $env:USERPROFILE -ChildPath ".config\scoop\config.json"
+
+    if (!(Test-Path $scoop_conf_current_user)) {
+        & sudo New-Item -Path $scoop_conf_current_user -ItemType SymbolicLink -Value $scoop_conf
+    }
+}
+
 function global:scoop-check-update {
     & scoop update
 
@@ -191,6 +200,26 @@ function global:scoop-check {
             Write-Host "❌ Failed apps check failed: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
+}
+
+function global:scoop-proxy-on {
+    try {
+        & scoop config proxy '127.0.0.1:7890'
+    } catch {
+        Write-Error "Failed to set Scoop proxy."
+        return
+    }
+    Write-Host "Scoop proxy has been turned on." -ForegroundColor Green
+}
+
+function global:scoop-proxy-off {
+    try {
+        & scoop config proxy ''
+    } catch {
+        Write-Error "Failed to unset Scoop proxy."
+        return
+    }
+    Write-Host "Scoop proxy has been turned off." -ForegroundColor Green
 }
 
 scoop-check
