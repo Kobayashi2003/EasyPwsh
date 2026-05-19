@@ -261,5 +261,6 @@ try {
 
 # Output selected script on Enter
 if ($confirmed -and $filtered.Count -gt 0) {
+	Set-Clipboard $filtered[$selIndex]
 	Write-Host $filtered[$selIndex]
 }

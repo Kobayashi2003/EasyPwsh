@@ -998,37 +998,51 @@ Set-PSReadLineKeyHandler -Key Ctrl+RightArrow `
     [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($nextWordStart)
 }
 
-# Set Ctrl+UpArrow to execute the previous command
+# # Set Ctrl+UpArrow to execute the previous command
+# Set-PSReadLineKeyHandler -Key Ctrl+UpArrow `
+#                          -BriefDescription ExecutePreviousCommand `
+#                          -LongDescription "Execute the previous command" `
+#                          -ScriptBlock {
+#     $history = Get-History
+#     if ($history.Count -gt 0) {
+#         $lastCommand = $history[-1].CommandLine
+#         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+#         [Microsoft.PowerShell.PSConsoleReadLine]::Insert($lastCommand)
+#         [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+#     }
+# }
+
+# # Set Shift+UpArrow to execute the previous command under admin privileges
+# Set-PSReadLineKeyHandler -Key Shift+UpArrow `
+#                          -BriefDescription ExecutePreviousAdminCommand `
+#                          -LongDescription "Execute the previous command under admin privileges" `
+#                          -ScriptBlock {
+#     $history = Get-History
+#     if (($history.Count -gt 0) -and (Get-Command 'sudo' -ErrorAction SilentlyContinue)) {
+#         $lastCommand = $history[-1].CommandLine
+#         $command = 'sudo ' + $lastCommand
+#         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+#         [Microsoft.PowerShell.PSConsoleReadLine]::Insert($command)
+#         [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+#     }
+# }
+
+# Set Crtl+UpArrow to replace the current line with the previous command without parameters and don't execute it
 Set-PSReadLineKeyHandler -Key Ctrl+UpArrow `
-                         -BriefDescription ExecutePreviousCommand `
-                         -LongDescription "Execute the previous command" `
+                         -BriefDescription InsertPreviousCommandWithoutParameters `
+                         -LongDescription "Replace the current line with the previous command without parameters and don't execute it" `
                          -ScriptBlock {
     $history = Get-History
     if ($history.Count -gt 0) {
         $lastCommand = $history[-1].CommandLine
+        $lastCommandWithoutParameters = $lastCommand.Split(' ')[0] + ' '
         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($lastCommand)
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-    }
-}
-
-# Set Shift+UpArrow to execute the previous command under admin privileges
-Set-PSReadLineKeyHandler -Key Shift+UpArrow `
-                         -BriefDescription ExecutePreviousAdminCommand `
-                         -LongDescription "Execute the previous command under admin privileges" `
-                         -ScriptBlock {
-    $history = Get-History
-    if (($history.Count -gt 0) -and (Get-Command 'sudo' -ErrorAction SilentlyContinue)) {
-        $lastCommand = $history[-1].CommandLine
-        $command = 'sudo ' + $lastCommand
-        [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($command)
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($lastCommandWithoutParameters)
     }
 }
 
 # set Ctrl+DownArrow to insert a copy of the last command at the cursor position
-set-psreadlinekeyhandler -key Ctrl+DownArrow `
+Set-psreadlinekeyhandler -key Ctrl+DownArrow `
                          -briefdescription copylastcommand `
                          -longdescription "insert a copy of the last command at the cursor position" `
                          -scriptblock {
