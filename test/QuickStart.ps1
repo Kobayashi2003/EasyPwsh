@@ -3,11 +3,8 @@
     "sunshine"
     "alist server"
     "rclone mount ALIST:/ K: --vfs-cache-mode full --network-mode --dir-cache-time 10s --links"
-    "postgres"
-    "sleep 5; cd D:\Program\Code\Visual_Novel_Database\backend ; conda run -n flask --live-stream python run.py"
-    "cd D:\Program\Code\Visual_Novel_Database\frontend ; npm start"
-    "cd D:\Program\Code\SimpleFileServer\frontend ; npm start"
-    "cd D:\Program\Code\SimpleFileServer\backend ; npm start"
+    "D:\Program\Code\Visual_Novel_Database\start-prod.ps1"
+    "D:\Program\Code\SimpleFileServer\start.ps1"
 )
 
 run-cmds-in-wt @commands -NoProfile
