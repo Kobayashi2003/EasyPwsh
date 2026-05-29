@@ -113,7 +113,10 @@ if ($Discoverable) {
 		if (-not $global:EZ.Utils.Contains($Name)) { return }  # not ours -> normal "not found"
 		$body = "`$f = Resolve-EzUtil '$Name'; & `$f @args"
 		Set-Item "function:global:$Name" -Value ([scriptblock]::Create($body))
-		$e.CommandScriptBlock = (Get-Item "function:global:$Name").ScriptBlock
+		# Set .Command (a real CommandInfo), NOT .CommandScriptBlock: the latter
+		# is only honored on the Get-Command discovery path, not on a direct
+		# interactive invocation, so the proxy would silently never fire.
+		$e.Command = Get-Command -Name $Name -CommandType Function
 		$e.StopSearch = $true
 	}
 	Write-Host "✔ EasyPwsh ready - lazy mode, $($global:EZ.Utils.Count) utils (ref=$($global:EZ.Ref))" -ForegroundColor DarkCyan
