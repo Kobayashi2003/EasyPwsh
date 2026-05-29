@@ -42,3 +42,28 @@ set-executionpolicy -scope currentuser -executionpolicy allsigned
 > cd easy-pwsh
 > ./easy-pwsh.ps1 -i
 ```
+
+# Remote (clone-free) usage
+
+On a fresh machine you can use the `utils` scripts without cloning the repo. Run the bootstrap once, then call any util by name — its script is downloaded from GitHub on first use, cached on disk, and run like a local script (a proxy, RPC-style):
+
+```powershell
+# Lazy (default): nothing is defined up front; an unknown util is
+# resolved against the manifest and fetched on first call.
+irm https://raw.githubusercontent.com/Kobayashi2003/EasyPwsh/main/remote-init.ps1 | iex
+
+moon          # downloaded + cached + run on first call; instant afterwards
+```
+
+```powershell
+# Discoverable: pre-defines a lightweight proxy for every util so
+# Get-Command and tab-completion list them immediately (bodies still
+# download lazily on first call).
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Kobayashi2003/EasyPwsh/main/remote-init.ps1))) -Discoverable
+```
+
+Notes:
+
+- Pin a version with `-Ref <commit-sha|tag>` (or `$env:EZ_REF`) for reproducible, trusted downloads. This executes remote code, so prefer a commit SHA you trust.
+- Scripts are cached under `%LOCALAPPDATA%\EasyPwsh\cache\<ref>`.
+- The available utils come from `utils/manifest.json`, regenerated with `utils/build-manifest.ps1`.
