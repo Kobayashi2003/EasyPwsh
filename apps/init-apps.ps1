@@ -1,5 +1,5 @@
 ﻿function global:reload-apps {
-    Get-ChildItem (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "common\*ps1"   ) | ForEach-Object { & $_.FullName }
+    # Get-ChildItem (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "common\*ps1"   ) | ForEach-Object { & $_.FullName }
     & (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "apps\init-apps.ps1") }
 
 function global:show-apps { $global:APPS_ALIAS | Format-Table }

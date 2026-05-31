@@ -31,7 +31,7 @@ function global:ff-convert {
         [switch]$Overwrite
     )
 
-    if (-not (Test-Path $InputFile)) {
+    if (-not (Test-Path -LiteralPath $InputFile)) {
         Write-Error "Input file not found: $InputFile"
         return
     }
@@ -70,7 +70,7 @@ function global:ff-trim {
         [switch]$Overwrite
     )
 
-    if (-not (Test-Path $InputFile)) {
+    if (-not (Test-Path -LiteralPath $InputFile)) {
         Write-Error "Input file not found: $InputFile"
         return
     }
@@ -118,7 +118,7 @@ function global:ff-cut {
         [switch]$Overwrite
     )
 
-    if (-not (Test-Path $InputFile)) {
+    if (-not (Test-Path -LiteralPath $InputFile)) {
         Write-Error "Input file not found: $InputFile"
         return
     }
@@ -163,7 +163,7 @@ function global:ff-extract-audio {
         [switch]$Overwrite
     )
 
-    if (-not (Test-Path $InputFile)) {
+    if (-not (Test-Path -LiteralPath $InputFile)) {
         Write-Error "Input file not found: $InputFile"
         return
     }
@@ -176,7 +176,7 @@ function global:ff-extract-audio {
 
     $overwriteFlag = if ($Overwrite) { "-y" } else { "-n" }
 
-    ffmpeg $overwriteFlag -i $InputFile -vn -acodec copy $OutputFile
+    ffmpeg $overwriteFlag -i $InputFile -vn $OutputFile
 }
 
 function global:ff-screenshot {
@@ -204,7 +204,7 @@ function global:ff-screenshot {
         [switch]$Overwrite
     )
 
-    if (-not (Test-Path $InputFile)) {
+    if (-not (Test-Path -LiteralPath $InputFile)) {
         Write-Error "Input file not found: $InputFile"
         return
     }
