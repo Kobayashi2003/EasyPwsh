@@ -1,13 +1,54 @@
-﻿function global:prompt {
+# Static lookup tables — built once at load time instead of on every prompt render.
+# All icons are single UTF-16 code-unit (BMP) glyphs on purpose: characters above
+# U+FFFF (most emoji) are surrogate pairs and get mangled into "??" when PSReadLine
+# re-renders the prompt via InvokePrompt() (e.g. after alt+r). Keep these < U+FFFF.
+$global:__PromptSpecialIcons = @{
+    $env:USERPROFILE                = '⌂'   # home
+    "$env:USERPROFILE\Documents"    = '▤'   # documents
+    "$env:USERPROFILE\Downloads"    = '↓'   # downloads
+    "$env:USERPROFILE\Pictures"     = '▦'   # pictures
+    "$env:USERPROFILE\Videos"       = '▶'   # videos
+    "$env:USERPROFILE\Music"        = '♪'   # music
+    "$env:USERPROFILE\Desktop"      = '▭'   # desktop
+    "$env:USERPROFILE\OneDrive"     = '☁'   # onedrive
+    "$env:USERPROFILE\.ssh"         = '⚷'   # ssh / keys
+    "$env:USERPROFILE\.config"      = '⚙'   # config
+    'C:\Program Files'              = '◰'   # packages
+    'C:\Program Files (x86)'        = '◰'
+    'C:\Windows'                    = '▦'   # windows
+    'C:\Users'                      = '☰'   # users
+    'C:\Temp'                       = '⌫'   # temp
+    'C:\ProgramData'                = '▣'   # program data
+}
+
+# Folder names (matched against the last path segment) -> icon.
+$global:__PromptNamedIcons = @{
+    src          = '§';  source       = '§'
+    lib          = '≣';  include      = '‡'
+    docs         = '▤';  scripts      = '»'
+    test         = '✓';  tests        = '✓'
+    node_modules = '◰';  packages     = '◰';  vendor   = '◰';  resources = '◰'
+    venv         = 'λ';  '.venv'      = 'λ'
+    build        = '◆';  dist         = '◆';  target   = '◆'
+    '.git'       = '⎇';  config       = '⚙';  tools    = '⚙';  utils     = '⚙'
+    bin          = '▦';  data         = '▣';  assets   = '▨'
+    public       = '☼';  private      = '⚷'
+}
+
+function global:prompt {
     $lst_cmd_state = $?
     $esc = $([char]27)
-    if ((Get-History).count -ge 1) {
-        $executionTime = ((Get-History)[-1].EndExecutionTime - (Get-History)[-1].StartExecutionTime).TotalMilliseconds
+
+    # Cache the history lookup — Get-History was previously called up to 3x per prompt.
+    $history = Get-History
+    if ($history.Count -ge 1) {
+        $last = $history[-1]
+        $executionTime = ($last.EndExecutionTime - $last.StartExecutionTime).TotalMilliseconds
     } else {
         $executionTime = 0
     }
-    $executionTime = [math]::Round($executionTime,2)
-    $time = (Get-Date -Format "HH:mm:ss")
+    $executionTime = [math]::Round($executionTime, 2)
+
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [Security.Principal.WindowsPrincipal] $identity
     $adminRole = [Security.Principal.WindowsBuiltInRole]::Administrator
@@ -36,71 +77,25 @@
         $promptString += "$esc[1;31m$esc[1;4m$($executionTime)ms$esc[0m "
     }
 
-    $path = ($PWD.Path)
-    $folderIcons = @{
-        $env:USERPROFILE = "🏠"
-        "$env:USERPROFILE\Documents" = "📄"
-        "$env:USERPROFILE\Downloads" = "📥"
-        "$env:USERPROFILE\Pictures" = "📸"
-        "$env:USERPROFILE\Videos" = "📹"
-        "$env:USERPROFILE\Music" = "🎵"
-        "$env:USERPROFILE\Desktop" = "🖥️"
-        "$env:USERPROFILE\OneDrive" = "☁️"
-        "$env:USERPROFILE\.ssh" = "🔐"
-        "$env:USERPROFILE\.config" = "⚙️"
-        "C:\Program Files" = "📦"
-        "C:\Program Files (x86)" = "📦"
-        "C:\Windows" = "🪟"
-        "C:\Users" = "👥"
-        "C:\Temp" = "🗑️"
-        "C:\ProgramData" = "🗄️"
-    }
-
-    # Add development-related folders
-    $devFolders = @(
-        "src", "source", "lib", "test", "tests", "docs", "scripts",
-        "node_modules", "venv", ".venv", "build", "dist", "target"
-    )
-
-    foreach ($folder in $devFolders) {
-        if ($path -match "\\$folder$") {
-            $folderIcons[$path] = switch ($folder) {
-                "src" { "🧾" }
-                "source" { "🧾" }
-                "lib" { "📚" }
-                "docs" { "📖" }
-                "scripts" { "📜" }
-                "node_modules" { "📦" }
-                ".git" { "🌿" }
-                "config" { "⚙️" }
-                "bin" { "🗃️" }
-                "include" { "📎" }
-                "data" { "💾" }
-                "assets" { "🖼️" }
-                "public" { "🌐" }
-                "private" { "🔒" }
-                "tools" { "🔧" }
-                "utils" { "🛠️" }
-                "vendor" { "🏪" }
-                "packages" { "📦" }
-                "resources" { "📦" }
-                { $_ -in "test","tests" } { "🧪" }
-                { $_ -in "venv",".venv" } { "🐍" }
-                { $_ -in "build","dist","target" } { "🎯" }
-                default { "📁" }
-            }
-            break
-        }
-    }
-
-    if ($folderIcons.ContainsKey($path)) {
-        $path = $folderIcons[$path]
+    # Resolve the path display + icon.
+    $path = $PWD.Path
+    if ($global:__PromptSpecialIcons.ContainsKey($path)) {
+        # Well-known root: show just its landmark icon.
+        $path = $global:__PromptSpecialIcons[$path]
     } else {
-        $gitRoot = git rev-parse --show-toplevel 2>$null
-        if ($LASTEXITCODE -eq 0 -and $path.StartsWith($gitRoot)) {
-            $path = "🌿 $($path.Substring($gitRoot.Length))"
+        $leaf = Split-Path $path -Leaf
+        if ($global:__PromptNamedIcons.ContainsKey($leaf)) {
+            $path = $global:__PromptNamedIcons[$leaf]
         } else {
-            $path += " 📂"
+            # git rev-parse returns a forward-slash path; normalize before comparing.
+            $gitRoot = git rev-parse --show-toplevel 2>$null
+            if ($LASTEXITCODE -eq 0 -and $gitRoot) { $gitRoot = $gitRoot -replace '/', '\' }
+            if ($gitRoot -and $path.StartsWith($gitRoot)) {
+                $repoName = Split-Path $gitRoot -Leaf
+                $path = "⎇ $repoName" + $path.Substring($gitRoot.Length)
+            } else {
+                $path += " ▸"
+            }
         }
     }
 

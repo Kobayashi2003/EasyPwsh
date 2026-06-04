@@ -38,6 +38,13 @@ Set-PSReadLineOption -MaximumHistoryCount 100000
 Set-PSReadLineOption -AddToHistoryHandler {
     param([string]$line)
 
+    # Capture executed commands while recording is active (see alt+r / alt+R below).
+    # Append to a file so `record-exec` works across terminals; every occurrence is
+    # kept (duplicates included) and the order is preserved.
+    if ($global:__RECORDING -and -not [string]::IsNullOrWhiteSpace($line)) {
+        [System.IO.File]::AppendAllText($global:__RECORD_FILE, $line.Replace("`r`n", "`n").Replace("`n", '`n') + [Environment]::NewLine, [System.Text.Encoding]::UTF8)
+    }
+
     $sensitive = "password|asplaintext|token|key|secret"
     # return ($line -notmatch $sensitive)
     return $true
@@ -1464,3 +1471,96 @@ Set-PSReadLineKeyHandler -Key Alt+U `
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
     [Microsoft.PowerShell.PSConsoleReadLine]::Delete($cursor, $line.Length - $cursor)
 }
+
+
+#region Command Recording
+# alt+r  : start recording the commands you run
+# alt+R  : stop recording
+# record-exec  : replay the recorded commands (works in any terminal)
+# record-clear : discard the recorded commands
+#
+# Commands are captured by the AddToHistoryHandler above while $global:__RECORDING is
+# set, and persisted to $global:__RECORD_FILE so the recording survives across terminals
+# and PowerShell sessions. Every command is kept in order, duplicates included.
+
+$global:__RECORDING = $false
+# Persist next to the PSReadLine history file so all terminals share one recording.
+$global:__RECORD_FILE = (Split-Path $profile.CurrentUserAllHosts) + "\.ps_record"
+
+function global:__record_read {
+<#
+.SYNOPSIS
+    Read the recorded command lines from the record file (decoding escaped newlines).
+#>
+    if (-not (Test-Path -LiteralPath $global:__RECORD_FILE)) {
+        return @()
+    }
+    return @([System.IO.File]::ReadAllLines($global:__RECORD_FILE, [System.Text.Encoding]::UTF8) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { $_.Replace('`n', "`n") })
+}
+
+function global:__record_start {
+<#
+.SYNOPSIS
+    Start recording the commands you execute (clears any previous recording).
+#>
+    $global:__RECORDING = $true
+    # Truncate the shared record file so each recording starts fresh.
+    [System.IO.File]::WriteAllText($global:__RECORD_FILE, '', [System.Text.Encoding]::UTF8)
+    Write-Host "`n● Recording started" -ForegroundColor Red
+    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+}
+
+function global:__record_end {
+<#
+.SYNOPSIS
+    Stop recording the commands you execute.
+#>
+    $global:__RECORDING = $false
+    $count = (& __record_read).Count
+    Write-Host "`n■ Recording stopped ($count command(s))" -ForegroundColor Yellow
+    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+}
+
+function global:record-exec {
+<#
+.SYNOPSIS
+    Replay the recorded commands, in order, including any repeats.
+#>
+    $cmds = & __record_read
+    if ($cmds.Count -eq 0) {
+        Write-Host "No recorded commands. Press alt+r to start recording." -ForegroundColor DarkGray
+        return
+    }
+    foreach ($cmd in $cmds) {
+        Write-Host "> $cmd" -ForegroundColor Cyan
+        Invoke-Expression $cmd
+    }
+}
+
+function global:record-clear {
+<#
+.SYNOPSIS
+    Discard the recorded commands.
+#>
+    if (Test-Path -LiteralPath $global:__RECORD_FILE) {
+        Remove-Item -LiteralPath $global:__RECORD_FILE -Force
+    }
+    Write-Host "Recorded commands cleared" -ForegroundColor DarkGray
+}
+
+Set-PSReadLineKeyHandler -Key Alt+r `
+                         -BriefDescription StartRecording `
+                         -LongDescription "Start recording the commands you execute" `
+                         -ScriptBlock {
+    & __record_start
+}
+
+Set-PSReadLineKeyHandler -Key Alt+R `
+                         -BriefDescription StopRecording `
+                         -LongDescription "Stop recording the commands you execute" `
+                         -ScriptBlock {
+    & __record_end
+}
+#endregion Command Recording
