@@ -33,18 +33,16 @@ runs the loader, which wires up the pieces below in order.
 
 Listed in load order:
 
-| Path | Role | Loading |
-|------|------|---------|
-| `easy-pwsh.ps1` | Entry point (`-i` install, `-r` run). | Manual. |
-| `core/init.ps1` | Loader; sources everything and builds `PATH`. | From `$PROFILE`. |
-| `start/` | Base env: prompt, alias, variables, sudo, WinAPI. | All `*.ps1` run at startup. |
-| `apps/` | Installs external CLIs (scoop, bat, ripgrep, ffmpeg, yt-dlp, yazi…). | Via `init-apps.ps1`. |
-| `modules/` | Third-party modules (PSReadLine, PSFzf, posh-git…). | Via `init-modules.ps1`. |
-| `functions/` | Unix-style shims (`grep`, `sed`, `touch`…) + `lazy-powershell` lib. | Dot-sourced via `init-functions.ps1`. |
-| `utils/` | Standalone scripts, callable by name; grouped by author (`fleschutz/`, `kobayashi/`). | Subfolders on `PATH`; `manifest.json` drives remote use. |
-| `test/` | Scratch scripts. | On `PATH`. |
-| `config/` | Configs for bundled tools (vim, yazi, lf, scoop…). | Read by `apps`/`start`. |
-| `remote-init.ps1` | Clone-free bootstrap; lazy-fetches `utils/*` from GitHub. | `irm … \| iex`. |
+| Path | Purpose |
+|------|---------|
+| `core/` | The loader; sources everything and builds `PATH`. |
+| `start/` | Base shell environment. |
+| `apps/` | Installs and initializes external CLI tools. |
+| `modules/` | Loads third-party PowerShell modules. |
+| `functions/` | In-session helper functions. |
+| `utils/` | Standalone scripts, callable by name and grouped by author. |
+| `test/` | Scratch scripts. |
+| `config/` | Configs for the bundled tools. |
 
 # Usage
 
