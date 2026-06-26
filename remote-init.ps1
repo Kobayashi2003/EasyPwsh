@@ -65,31 +65,43 @@ $global:EZ.CacheDir = Join-Path (Join-Path $env:LOCALAPPDATA 'EasyPwsh\cache') $
 New-Item -ItemType Directory -Force -Path $EZ.CacheDir | Out-Null
 
 # --- Manifest: prefer committed manifest.json, fall back to git-trees API ----
+# Returns a hashtable mapping util name -> repo-relative path under utils/
+# (e.g. 'get-pub-ip' -> 'kobayashi/get-pub-ip.ps1'). Scripts live in author
+# subfolders, so the path is needed to fetch them.
 function global:Get-EzManifest {
 	$cache = Join-Path $global:EZ.CacheDir 'manifest.txt'
 	if (Test-Path $cache) {
-		return [Collections.Generic.HashSet[string]]@(Get-Content $cache)
+		$map = @{}
+		foreach ($line in Get-Content $cache) {
+			$k, $v = $line -split '=', 2
+			if ($k) { $map[$k] = $v }
+		}
+		return $map
 	}
 
-	$names = $null
+	$map = @{}
 	try {
-		$names = (Invoke-RestMethod "$($global:EZ.RawBase)/utils/manifest.json").names
+		$m = Invoke-RestMethod "$($global:EZ.RawBase)/utils/manifest.json"
+		foreach ($p in $m.utils.PSObject.Properties) { $map[$p.Name] = $p.Value.path }
 	} catch {
 		$url  = "https://api.github.com/repos/$($global:EZ.Owner)/$($global:EZ.Repo)/git/trees/$($global:EZ.Ref)?recursive=1"
 		$tree = Invoke-RestMethod $url -Headers @{ 'User-Agent' = 'EasyPwsh' }
-		$names = $tree.tree |
-			Where-Object { $_.path -like 'utils/*.ps1' -and $_.path -notlike 'utils/*/*' } |
-			ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_.path) }
+		$tree.tree |
+			Where-Object { $_.path -like 'utils/*/*.ps1' } |
+			ForEach-Object { $map[[IO.Path]::GetFileNameWithoutExtension($_.path)] = ($_.path -replace '^utils/', '') }
 	}
-	$names | Set-Content $cache
-	return [Collections.Generic.HashSet[string]]@($names)
+	$map.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" } | Set-Content $cache
+	return $map
 }
 
 # --- Lazy fetch: download a single util to the disk cache, return its path ---
 function global:Resolve-EzUtil([string]$Name) {
-	$file = Join-Path $global:EZ.CacheDir "$Name.ps1"
+	$rel = $global:EZ.Utils[$Name]
+	if (-not $rel) { throw "Unknown util: $Name" }
+	$file = Join-Path $global:EZ.CacheDir $rel
 	if (-not (Test-Path $file)) {
-		Invoke-RestMethod "$($global:EZ.RawBase)/utils/$Name.ps1" -OutFile $file
+		New-Item -ItemType Directory -Force -Path (Split-Path $file) | Out-Null
+		Invoke-RestMethod "$($global:EZ.RawBase)/utils/$rel" -OutFile $file
 	}
 	return $file
 }
@@ -99,7 +111,7 @@ $global:EZ.Utils = Get-EzManifest
 if ($Discoverable) {
 	# Eager stubs: real functions exist now (discoverable / tab-completable),
 	# but each downloads its body only on first invocation.
-	foreach ($name in $global:EZ.Utils) {
+	foreach ($name in $global:EZ.Utils.Keys) {
 		$body = "`$f = Resolve-EzUtil '$name'; & `$f @args"
 		Set-Item "function:global:$name" -Value ([scriptblock]::Create($body))
 	}
@@ -110,7 +122,7 @@ if ($Discoverable) {
 	# skip the handler entirely).
 	$ExecutionContext.InvokeCommand.CommandNotFoundAction = {
 		param($Name, $e)
-		if (-not $global:EZ.Utils.Contains($Name)) { return }  # not ours -> normal "not found"
+		if (-not $global:EZ.Utils.ContainsKey($Name)) { return }  # not ours -> normal "not found"
 		$body = "`$f = Resolve-EzUtil '$Name'; & `$f @args"
 		Set-Item "function:global:$Name" -Value ([scriptblock]::Create($body))
 		# Set .Command (a real CommandInfo), NOT .CommandScriptBlock: the latter

@@ -1,271 +1,1331 @@
 {
-  "generatedAt": "2026-05-29T05:19:05.1631712Z",
+  "generatedAt": "2026-06-25T21:18:52.5870766Z",
   "count": 265,
-  "names": [
-    "Add-ContextMenu-OpenTerminal",
-    "add-firewall-rules",
-    "build-repo",
-    "build-repos",
-    "cd-autostart",
-    "cd-desktop",
-    "cd-docs",
-    "cd-downloads",
-    "cd-dropbox",
-    "cd-home",
-    "cd-music",
-    "cd-onedrive",
-    "cd-pics",
-    "cd-recycle-bin",
-    "cd-root",
-    "cd-scripts",
-    "cd-ssh",
-    "cd-videos",
-    "change-system-locale",
-    "check-admin",
-    "check-cpu",
-    "check-drive-space",
-    "check-file-system",
-    "check-health",
-    "check-ipv4-address",
-    "check-ipv6-address",
-    "check-mac-address",
-    "check-ping",
-    "check-reop",
-    "check-subnet-mask",
-    "check-swap-space",
-    "check-windows-system-files",
-    "clean-duplicate-firewall-rules",
-    "clean-repo",
-    "clean-repos",
-    "clear-cache",
-    "clear-recycle-bin",
-    "click-left",
-    "click-middle",
-    "click-right",
-    "close-calculator",
-    "close-chrome",
-    "close-edge",
-    "close-file-explorer",
-    "close-firefox",
-    "close-program",
-    "close-task-manager",
-    "close-windows-terminal",
-    "compare-files",
-    "compare-folders",
-    "configure-git",
-    "connect-to-postgres",
-    "convert-csv2txt",
-    "convert-file-encoding",
-    "convert-img2pdf",
-    "convert-md2pdf",
-    "convert-mysql2csv",
-    "convert-pdf2img",
-    "convert-ps2bat",
-    "convert-ps2bat-v2",
-    "convert-ps2md",
-    "convert-sql2csv",
-    "convert-string-encoding",
-    "convert-to-filename",
-    "convert-video2hls",
-    "copy-files",
-    "copy-structure",
-    "count-dirs",
-    "count-files",
-    "count-lines",
-    "create-links",
-    "detect-keyboard-input",
-    "detect-mouse-click",
-    "Disable-IPv6",
-    "drag-left",
-    "drag-middle",
-    "drag-mouse",
-    "drag-right",
-    "edit",
-    "enable-crash-dumps",
-    "enable-god-mode",
-    "Enable-IPv6",
-    "expand-folder",
-    "export-to-manuals",
-    "extract-archives",
-    "fetch-repo",
-    "fetch-repos",
-    "fix-ghost-keyboard",
-    "flatten-nested-folders",
-    "get-cmdlet-alias",
-    "get-hex-dump",
-    "get-md5",
-    "get-mouse-position",
-    "get-profile-info",
-    "Get-PubIP",
-    "get-recent-commands",
-    "get-screen-size",
-    "get-sha1",
-    "get-sha256",
-    "get-window-position",
-    "group-by-time",
-    "hibernate",
-    "hibernate-for-duration",
-    "hibernate-until",
-    "inspect-exe",
-    "install-pwsh",
-    "install-updates",
-    "install-wsl",
-    "introduce-powershell",
-    "Invoke-IEAutomation",
-    "Invoke-Speech",
-    "list-alias",
-    "list-apps",
-    "list-automatic-variables",
-    "list-branches",
-    "list-cheat-sheet",
-    "list-city-weather",
-    "list-cli-tools",
-    "list-clipboard",
-    "list-cmdlets",
-    "list-commit-stats",
-    "list-commits",
-    "list-console-colors",
-    "list-credits",
-    "list-dir-tree",
-    "list-drives",
-    "list-earthquakes",
-    "list-emojis",
-    "list-empty-dirs",
-    "list-empty-files",
-    "list-environment-variables",
-    "list-exchange-rates",
-    "list-files",
-    "list-folder",
-    "list-hidden-files",
-    "list-installed-software",
-    "list-items-size",
-    "list-latest-tag",
-    "list-latest-tags",
-    "list-links",
-    "list-mysql-table",
-    "list-network-shares",
-    "list-news",
-    "list-passwords",
-    "list-pins",
-    "list-print-jobs",
-    "list-printers",
-    "list-processes",
-    "list-recycle-bin",
-    "list-repos",
-    "list-servers",
-    "list-sql-tables",
-    "list-submodules",
-    "list-system-info",
-    "list-tags",
-    "list-taks",
-    "list-timezone",
-    "list-timezones",
-    "list-unused-files",
-    "list-user-groups",
-    "list-weather",
-    "list-win32-cls",
-    "list-workdir",
-    "locate-ipadress",
-    "moon",
-    "move-to-recycle",
-    "new-branch",
-    "new-qrcode",
-    "new-shortcut",
-    "new-symlink",
-    "new-tag",
-    "open-c-drive",
-    "open-calculator",
-    "open-cmd",
-    "open-default-browser",
-    "open-downloads-folder",
-    "open-dropbox-folder",
-    "open-edge",
-    "open-file-explorer",
-    "open-firefox",
-    "open-google-translate",
-    "open-home-folder",
-    "open-music-folder",
-    "open-onedrive-folder",
-    "open-pictures-folder",
-    "open-recycle-bin",
-    "open-task-manager",
-    "open-videos-folder",
-    "open-windows-terminal",
-    "paste-files",
-    "pick-commit",
-    "play-bee-sound",
-    "poweroff",
-    "pull-repo",
-    "pull-repos",
-    "query-smart-data",
-    "reboot",
-    "remind-me",
-    "remove-duplicate-files",
-    "remove-empty-dirs",
-    "remove-links",
-    "remove-print-jobs",
-    "remove-tag",
-    "replace-in-files",
-    "restart-explorer",
-    "restart-network-adapters",
-    "run-cmds-in-wt",
-    "save-screenshot",
-    "scan-ports",
-    "scroll-wheel-down",
-    "scroll-wheel-up",
-    "search-filename",
-    "search-files",
-    "search-utils",
-    "send-tcp",
-    "send-udp",
-    "set-background-color",
-    "Set-ClassicRightClickMenu",
-    "Set-DefaultRightClickMenu",
-    "set-foreground-color",
-    "set-mouse-position",
-    "set-timer",
-    "Set-TimeToUTC",
-    "set-title",
-    "set-wallpaper",
-    "set-window-foreground",
-    "set-window-position",
-    "Show-Notification",
-    "show-object",
-    "show-system-locale",
-    "simulate-presence",
-    "start-ipfs-server",
-    "switch-branch",
-    "switch-shelly1",
-    "sync-repo",
-    "toggle-capslock",
-    "toggle-folder-type",
-    "toggle-insert",
-    "toggle-numlock",
-    "tree",
-    "turn-volume-down",
-    "turn-volume-off",
-    "turn-volume-on",
-    "turn-volume-up",
-    "update-m3u8-urls",
-    "update-pwsh",
-    "wake-up",
-    "weather",
-    "weather-report",
-    "windefender",
-    "write-animated",
-    "write-big",
-    "write-blue",
-    "write-braille",
-    "write-changelog",
-    "write-green",
-    "write-lowercase",
-    "write-marquee",
-    "write-morse-code",
-    "write-motd",
-    "write-red",
-    "write-rot13",
-    "write-typewriter",
-    "write-uppercase",
-    "write-vertical"
-  ]
+  "utils": {
+    "add-firewall-rules": {
+      "path": "fleschutz/add-firewall-rules.ps1",
+      "author": "fleschutz",
+      "description": "Adds firewall rules for executables (needs admin rights)."
+    },
+    "build-repo": {
+      "path": "fleschutz/build-repo.ps1",
+      "author": "fleschutz",
+      "description": "Builds a repository"
+    },
+    "build-repos": {
+      "path": "fleschutz/build-repos.ps1",
+      "author": "fleschutz",
+      "description": "Builds Git repositories"
+    },
+    "cd-autostart": {
+      "path": "fleschutz/cd-autostart.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's autostart folder"
+    },
+    "cd-desktop": {
+      "path": "fleschutz/cd-desktop.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's desktop folder"
+    },
+    "cd-docs": {
+      "path": "fleschutz/cd-docs.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the documents folder"
+    },
+    "cd-downloads": {
+      "path": "fleschutz/cd-downloads.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's downloads folder"
+    },
+    "cd-dropbox": {
+      "path": "fleschutz/cd-dropbox.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's Dropbox folder"
+    },
+    "cd-home": {
+      "path": "fleschutz/cd-home.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's home folder"
+    },
+    "cd-music": {
+      "path": "fleschutz/cd-music.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's music folder"
+    },
+    "cd-onedrive": {
+      "path": "fleschutz/cd-onedrive.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's OneDrive folder"
+    },
+    "cd-pics": {
+      "path": "fleschutz/cd-pics.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's pictures folder"
+    },
+    "cd-recycle-bin": {
+      "path": "fleschutz/cd-recycle-bin.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the recycle bin folder"
+    },
+    "cd-root": {
+      "path": "fleschutz/cd-root.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the root directory"
+    },
+    "cd-scripts": {
+      "path": "fleschutz/cd-scripts.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the PowerShell scripts folder"
+    },
+    "cd-ssh": {
+      "path": "fleschutz/cd-ssh.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's SSH folder"
+    },
+    "cd-videos": {
+      "path": "fleschutz/cd-videos.ps1",
+      "author": "fleschutz",
+      "description": "Sets the working directory to the user's videos folder"
+    },
+    "check-cpu": {
+      "path": "fleschutz/check-cpu.ps1",
+      "author": "fleschutz",
+      "description": "Checks the CPU status"
+    },
+    "check-drive-space": {
+      "path": "fleschutz/check-drive-space.ps1",
+      "author": "fleschutz",
+      "description": "Checks the drive space"
+    },
+    "check-file-system": {
+      "path": "fleschutz/check-file-system.ps1",
+      "author": "fleschutz",
+      "description": "Checks the file system of a drive (needs admin rights)"
+    },
+    "check-health": {
+      "path": "fleschutz/check-health.ps1",
+      "author": "fleschutz",
+      "description": "Checks the system health"
+    },
+    "check-ipv4-address": {
+      "path": "fleschutz/check-ipv4-address.ps1",
+      "author": "fleschutz",
+      "description": "Checks an IPv4 address for validity"
+    },
+    "check-ipv6-address": {
+      "path": "fleschutz/check-ipv6-address.ps1",
+      "author": "fleschutz",
+      "description": "Checks an IPv6 address for validity"
+    },
+    "check-mac-address": {
+      "path": "fleschutz/check-mac-address.ps1",
+      "author": "fleschutz",
+      "description": "Checks the given MAC address for validity"
+    },
+    "check-ping": {
+      "path": "fleschutz/check-ping.ps1",
+      "author": "fleschutz",
+      "description": "Checks the ping latency"
+    },
+    "check-repo": {
+      "path": "fleschutz/check-repo.ps1",
+      "author": "fleschutz",
+      "description": "Checks a Git repository"
+    },
+    "check-subnet-mask": {
+      "path": "fleschutz/check-subnet-mask.ps1",
+      "author": "fleschutz",
+      "description": "Checks the given subnet mask for validity"
+    },
+    "check-swap-space": {
+      "path": "fleschutz/check-swap-space.ps1",
+      "author": "fleschutz",
+      "description": "Checks the swap space"
+    },
+    "check-windows-system-files": {
+      "path": "fleschutz/check-windows-system-files.ps1",
+      "author": "fleschutz",
+      "description": "Checks the validity of the Windows system files (requires admin rights)"
+    },
+    "clean-repo": {
+      "path": "fleschutz/clean-repo.ps1",
+      "author": "fleschutz",
+      "description": "Cleans a repo"
+    },
+    "clean-repos": {
+      "path": "fleschutz/clean-repos.ps1",
+      "author": "fleschutz",
+      "description": "Cleans all Git repositories in a folder from untracked files"
+    },
+    "clear-recycle-bin": {
+      "path": "fleschutz/clear-recycle-bin.ps1",
+      "author": "fleschutz",
+      "description": "Clears the recycle bin folder"
+    },
+    "close-calculator": {
+      "path": "fleschutz/close-calculator.ps1",
+      "author": "fleschutz",
+      "description": "Closes the calculator application"
+    },
+    "close-chrome": {
+      "path": "fleschutz/close-chrome.ps1",
+      "author": "fleschutz",
+      "description": "Closes the Chrome browser"
+    },
+    "close-edge": {
+      "path": "fleschutz/close-edge.ps1",
+      "author": "fleschutz",
+      "description": "Closes the Edge browser"
+    },
+    "close-file-explorer": {
+      "path": "fleschutz/close-file-explorer.ps1",
+      "author": "fleschutz",
+      "description": "Closes the File Explorer"
+    },
+    "close-firefox": {
+      "path": "fleschutz/close-firefox.ps1",
+      "author": "fleschutz",
+      "description": "Closes the Firefox browser"
+    },
+    "close-program": {
+      "path": "fleschutz/close-program.ps1",
+      "author": "fleschutz",
+      "description": "Closes a program"
+    },
+    "close-task-manager": {
+      "path": "fleschutz/close-task-manager.ps1",
+      "author": "fleschutz",
+      "description": "Closes the Task Manager"
+    },
+    "close-windows-terminal": {
+      "path": "fleschutz/close-windows-terminal.ps1",
+      "author": "fleschutz",
+      "description": "Closes the Windows Terminal app"
+    },
+    "configure-git": {
+      "path": "fleschutz/configure-git.ps1",
+      "author": "fleschutz",
+      "description": "Configures Git"
+    },
+    "convert-csv2txt": {
+      "path": "fleschutz/convert-csv2txt.ps1",
+      "author": "fleschutz",
+      "description": "Converts a .CSV file into a text file"
+    },
+    "convert-mysql2csv": {
+      "path": "fleschutz/convert-mysql2csv.ps1",
+      "author": "fleschutz",
+      "description": "Convert a MySQL database table to a .CSV file"
+    },
+    "convert-ps2bat": {
+      "path": "fleschutz/convert-ps2bat.ps1",
+      "author": "fleschutz",
+      "description": "Converts PowerShell scripts to batch files"
+    },
+    "convert-ps2md": {
+      "path": "fleschutz/convert-ps2md.ps1",
+      "author": "fleschutz",
+      "description": "Converts a PowerShell script to Markdown"
+    },
+    "convert-sql2csv": {
+      "path": "fleschutz/convert-sql2csv.ps1",
+      "author": "fleschutz",
+      "description": "Converts a SQL database table to a .CSV file"
+    },
+    "edit": {
+      "path": "fleschutz/edit.ps1",
+      "author": "fleschutz",
+      "description": "Opens a text editor"
+    },
+    "enable-crash-dumps": {
+      "path": "fleschutz/enable-crash-dumps.ps1",
+      "author": "fleschutz",
+      "description": "Enables the writing of crash dumps"
+    },
+    "enable-god-mode": {
+      "path": "fleschutz/enable-god-mode.ps1",
+      "author": "fleschutz",
+      "description": "Enables the god mode"
+    },
+    "export-to-manuals": {
+      "path": "fleschutz/export-to-manuals.ps1",
+      "author": "fleschutz",
+      "description": "Exports all scripts as manuals"
+    },
+    "fetch-repo": {
+      "path": "fleschutz/fetch-repo.ps1",
+      "author": "fleschutz",
+      "description": "Fetches updates into a Git repo"
+    },
+    "fetch-repos": {
+      "path": "fleschutz/fetch-repos.ps1",
+      "author": "fleschutz",
+      "description": "Fetches updates into Git repos"
+    },
+    "get-md5": {
+      "path": "fleschutz/get-md5.ps1",
+      "author": "fleschutz",
+      "description": "Prints the MD5 checksum of a file"
+    },
+    "get-sha1": {
+      "path": "fleschutz/get-sha1.ps1",
+      "author": "fleschutz",
+      "description": "Prints the SHA1 checksum of a file"
+    },
+    "get-sha256": {
+      "path": "fleschutz/get-sha256.ps1",
+      "author": "fleschutz",
+      "description": "Prints the SHA256 checksum of a file"
+    },
+    "hibernate": {
+      "path": "fleschutz/hibernate.ps1",
+      "author": "fleschutz",
+      "description": "Hibernates the computer"
+    },
+    "inspect-exe": {
+      "path": "fleschutz/inspect-exe.ps1",
+      "author": "fleschutz",
+      "description": "Prints basic information of an executable file"
+    },
+    "install-updates": {
+      "path": "fleschutz/install-updates.ps1",
+      "author": "fleschutz",
+      "description": "Installs software updates"
+    },
+    "install-wsl": {
+      "path": "fleschutz/install-wsl.ps1",
+      "author": "fleschutz",
+      "description": "Installs Windows Subsystem for Linux (needs admin rights)"
+    },
+    "introduce-powershell": {
+      "path": "fleschutz/introduce-powershell.ps1",
+      "author": "fleschutz",
+      "description": "Introducing PowerShell"
+    },
+    "list-alias": {
+      "path": "fleschutz/list-alias.ps1",
+      "author": "fleschutz",
+      "description": "Lists all PowerShell aliases"
+    },
+    "list-apps": {
+      "path": "fleschutz/list-apps.ps1",
+      "author": "fleschutz",
+      "description": "Lists the installed apps"
+    },
+    "list-automatic-variables": {
+      "path": "fleschutz/list-automatic-variables.ps1",
+      "author": "fleschutz",
+      "description": "Lists all automatic variables of PowerShell"
+    },
+    "list-branches": {
+      "path": "fleschutz/list-branches.ps1",
+      "author": "fleschutz",
+      "description": "Lists Git branches"
+    },
+    "list-cheat-sheet": {
+      "path": "fleschutz/list-cheat-sheet.ps1",
+      "author": "fleschutz",
+      "description": "Lists the PowerShell cheat sheet"
+    },
+    "list-city-weather": {
+      "path": "fleschutz/list-city-weather.ps1",
+      "author": "fleschutz",
+      "description": "Lists the weather of cities world-wide"
+    },
+    "list-cli-tools": {
+      "path": "fleschutz/list-cli-tools.ps1",
+      "author": "fleschutz",
+      "description": "Lists command-line tools"
+    },
+    "list-clipboard": {
+      "path": "fleschutz/list-clipboard.ps1",
+      "author": "fleschutz",
+      "description": "Lists the contents of the clipboard"
+    },
+    "list-cmdlets": {
+      "path": "fleschutz/list-cmdlets.ps1",
+      "author": "fleschutz",
+      "description": "Lists all PowerShell cmdlets"
+    },
+    "list-commit-stats": {
+      "path": "fleschutz/list-commit-stats.ps1",
+      "author": "fleschutz",
+      "description": "Lists the Git commit statistics"
+    },
+    "list-commits": {
+      "path": "fleschutz/list-commits.ps1",
+      "author": "fleschutz",
+      "description": "Lists Git commits"
+    },
+    "list-console-colors": {
+      "path": "fleschutz/list-console-colors.ps1",
+      "author": "fleschutz",
+      "description": "Lists all console colors"
+    },
+    "list-credits": {
+      "path": "fleschutz/list-credits.ps1",
+      "author": "fleschutz",
+      "description": "Shows the credits for the PowerShell Scripts"
+    },
+    "list-dir-tree": {
+      "path": "fleschutz/list-dir-tree.ps1",
+      "author": "fleschutz",
+      "description": "Lists a directory tree"
+    },
+    "list-drives": {
+      "path": "fleschutz/list-drives.ps1",
+      "author": "fleschutz",
+      "description": "Lists all drives"
+    },
+    "list-earthquakes": {
+      "path": "fleschutz/list-earthquakes.ps1",
+      "author": "fleschutz",
+      "description": "Lists major earthquakes"
+    },
+    "list-emojis": {
+      "path": "fleschutz/list-emojis.ps1",
+      "author": "fleschutz",
+      "description": "Lists available Emojis"
+    },
+    "list-empty-dirs": {
+      "path": "fleschutz/list-empty-dirs.ps1",
+      "author": "fleschutz",
+      "description": "Lists all empty directories in a directory tree"
+    },
+    "list-empty-files": {
+      "path": "fleschutz/list-empty-files.ps1",
+      "author": "fleschutz",
+      "description": "Lists all empty files in a directory tree"
+    },
+    "list-environment-variables": {
+      "path": "fleschutz/list-environment-variables.ps1",
+      "author": "fleschutz",
+      "description": "Lists all environment variables"
+    },
+    "list-exchange-rates": {
+      "path": "fleschutz/list-exchange-rates.ps1",
+      "author": "fleschutz",
+      "description": "Lists the exchange rates for a currency"
+    },
+    "list-files": {
+      "path": "fleschutz/list-files.ps1",
+      "author": "fleschutz",
+      "description": "Lists all files in a directory tree"
+    },
+    "list-folder": {
+      "path": "fleschutz/list-folder.ps1",
+      "author": "fleschutz",
+      "description": "Lists a folder"
+    },
+    "list-hidden-files": {
+      "path": "fleschutz/list-hidden-files.ps1",
+      "author": "fleschutz",
+      "description": "Lists all hidden files in a directory tree"
+    },
+    "list-installed-software": {
+      "path": "fleschutz/list-installed-software.ps1",
+      "author": "fleschutz",
+      "description": "Lists the installed software"
+    },
+    "list-latest-tag": {
+      "path": "fleschutz/list-latest-tag.ps1",
+      "author": "fleschutz",
+      "description": "Lists the repo's latest tag"
+    },
+    "list-latest-tags": {
+      "path": "fleschutz/list-latest-tags.ps1",
+      "author": "fleschutz",
+      "description": "Lists the latests tags in all Git repositories in a folder"
+    },
+    "list-mysql-table": {
+      "path": "fleschutz/list-mysql-table.ps1",
+      "author": "fleschutz",
+      "description": "Lists all tables of a MySQL database"
+    },
+    "list-network-shares": {
+      "path": "fleschutz/list-network-shares.ps1",
+      "author": "fleschutz",
+      "description": "Lists the local network shares"
+    },
+    "list-news": {
+      "path": "fleschutz/list-news.ps1",
+      "author": "fleschutz",
+      "description": "Lists the latest news"
+    },
+    "list-passwords": {
+      "path": "fleschutz/list-passwords.ps1",
+      "author": "fleschutz",
+      "description": "Lists random passwords"
+    },
+    "list-pins": {
+      "path": "fleschutz/list-pins.ps1",
+      "author": "fleschutz",
+      "description": "Lists random PIN's"
+    },
+    "list-print-jobs": {
+      "path": "fleschutz/list-print-jobs.ps1",
+      "author": "fleschutz",
+      "description": "Lists all print jobs"
+    },
+    "list-printers": {
+      "path": "fleschutz/list-printers.ps1",
+      "author": "fleschutz",
+      "description": "Lists the printers"
+    },
+    "list-processes": {
+      "path": "fleschutz/list-processes.ps1",
+      "author": "fleschutz",
+      "description": "Lists all local computer processes"
+    },
+    "list-recycle-bin": {
+      "path": "fleschutz/list-recycle-bin.ps1",
+      "author": "fleschutz",
+      "description": "Lists the content of the recycle bin folder"
+    },
+    "list-repos": {
+      "path": "fleschutz/list-repos.ps1",
+      "author": "fleschutz",
+      "description": "Lists Git repositories"
+    },
+    "list-servers": {
+      "path": "fleschutz/list-servers.ps1",
+      "author": "fleschutz",
+      "description": "Lists the installed services"
+    },
+    "list-sql-tables": {
+      "path": "fleschutz/list-sql-tables.ps1",
+      "author": "fleschutz",
+      "description": "Lists all tables of a SQL server database"
+    },
+    "list-submodules": {
+      "path": "fleschutz/list-submodules.ps1",
+      "author": "fleschutz",
+      "description": "Lists the submodules in a Git repository"
+    },
+    "list-system-info": {
+      "path": "fleschutz/list-system-info.ps1",
+      "author": "fleschutz",
+      "description": "Lists system information of the local computer"
+    },
+    "list-tags": {
+      "path": "fleschutz/list-tags.ps1",
+      "author": "fleschutz",
+      "description": "Lists all tags in a repo"
+    },
+    "list-tasks": {
+      "path": "fleschutz/list-tasks.ps1",
+      "author": "fleschutz",
+      "description": "Lists all scheduled tasks"
+    },
+    "list-timezone": {
+      "path": "fleschutz/list-timezone.ps1",
+      "author": "fleschutz",
+      "description": "Lists time zone details"
+    },
+    "list-timezones": {
+      "path": "fleschutz/list-timezones.ps1",
+      "author": "fleschutz",
+      "description": "Lists all available time zones"
+    },
+    "list-unused-files": {
+      "path": "fleschutz/list-unused-files.ps1",
+      "author": "fleschutz",
+      "description": "Lists unused files in a directory tree"
+    },
+    "list-user-groups": {
+      "path": "fleschutz/list-user-groups.ps1",
+      "author": "fleschutz",
+      "description": "Lists the user groups"
+    },
+    "list-weather": {
+      "path": "fleschutz/list-weather.ps1",
+      "author": "fleschutz",
+      "description": "Lists the weather report"
+    },
+    "list-workdir": {
+      "path": "fleschutz/list-workdir.ps1",
+      "author": "fleschutz",
+      "description": "Lists the current working directory"
+    },
+    "locate-ipadress": {
+      "path": "fleschutz/locate-ipadress.ps1",
+      "author": "fleschutz",
+      "description": "Prints the geo location of the given IP address"
+    },
+    "moon": {
+      "path": "fleschutz/moon.ps1",
+      "author": "fleschutz",
+      "description": "Prints the current moon phase"
+    },
+    "new-branch": {
+      "path": "fleschutz/new-branch.ps1",
+      "author": "fleschutz",
+      "description": "Creates a new Git branch"
+    },
+    "new-qrcode": {
+      "path": "fleschutz/new-qrcode.ps1",
+      "author": "fleschutz",
+      "description": "Generates a QR code"
+    },
+    "new-shortcut": {
+      "path": "fleschutz/new-shortcut.ps1",
+      "author": "fleschutz",
+      "description": "Creates a new shortcut file"
+    },
+    "new-symlink": {
+      "path": "fleschutz/new-symlink.ps1",
+      "author": "fleschutz",
+      "description": "Creates a new symbolic link file"
+    },
+    "new-tag": {
+      "path": "fleschutz/new-tag.ps1",
+      "author": "fleschutz",
+      "description": "Creates a new tag in a Git repository"
+    },
+    "open-c-drive": {
+      "path": "fleschutz/open-c-drive.ps1",
+      "author": "fleschutz",
+      "description": "Opens the C: drive folder"
+    },
+    "open-calculator": {
+      "path": "fleschutz/open-calculator.ps1",
+      "author": "fleschutz",
+      "description": "Launches the calculator application"
+    },
+    "open-default-browser": {
+      "path": "fleschutz/open-default-browser.ps1",
+      "author": "fleschutz",
+      "description": "Opens the default browser"
+    },
+    "open-downloads-folder": {
+      "path": "fleschutz/open-downloads-folder.ps1",
+      "author": "fleschutz",
+      "description": "Opens the user's downloads folder"
+    },
+    "open-dropbox-folder": {
+      "path": "fleschutz/open-dropbox-folder.ps1",
+      "author": "fleschutz",
+      "description": "Opens the Dropbox folder"
+    },
+    "open-edge": {
+      "path": "fleschutz/open-edge.ps1",
+      "author": "fleschutz",
+      "description": "Launches the Edge browser"
+    },
+    "open-file-explorer": {
+      "path": "fleschutz/open-file-explorer.ps1",
+      "author": "fleschutz",
+      "description": "Launches the File Explorer"
+    },
+    "open-firefox": {
+      "path": "fleschutz/open-firefox.ps1",
+      "author": "fleschutz",
+      "description": "Launches the Firefox browser"
+    },
+    "open-google-translate": {
+      "path": "fleschutz/open-google-translate.ps1",
+      "author": "fleschutz",
+      "description": "Opens Google Translate"
+    },
+    "open-home-folder": {
+      "path": "fleschutz/open-home-folder.ps1",
+      "author": "fleschutz",
+      "description": "Opens the home folder"
+    },
+    "open-music-folder": {
+      "path": "fleschutz/open-music-folder.ps1",
+      "author": "fleschutz",
+      "description": "Opens the music folder"
+    },
+    "open-pictures-folder": {
+      "path": "fleschutz/open-pictures-folder.ps1",
+      "author": "fleschutz",
+      "description": "Opens the user's pictures folder"
+    },
+    "open-task-manager": {
+      "path": "fleschutz/open-task-manager.ps1",
+      "author": "fleschutz",
+      "description": "Starts the Task Manager"
+    },
+    "open-windows-terminal": {
+      "path": "fleschutz/open-windows-terminal.ps1",
+      "author": "fleschutz",
+      "description": "Launches the Windows Terminal app"
+    },
+    "pick-commit": {
+      "path": "fleschutz/pick-commit.ps1",
+      "author": "fleschutz",
+      "description": "Cherry-picks a Git commit into one or more branches"
+    },
+    "play-bee-sound": {
+      "path": "fleschutz/play-bee-sound.ps1",
+      "author": "fleschutz",
+      "description": "Plays a short beep sound"
+    },
+    "poweroff": {
+      "path": "fleschutz/poweroff.ps1",
+      "author": "fleschutz",
+      "description": "Halts the computer (needs admin rights)"
+    },
+    "pull-repo": {
+      "path": "fleschutz/pull-repo.ps1",
+      "author": "fleschutz",
+      "description": "Pulls updates into a Git repo"
+    },
+    "pull-repos": {
+      "path": "fleschutz/pull-repos.ps1",
+      "author": "fleschutz",
+      "description": "Pulls updates into Git repos"
+    },
+    "query-smart-data": {
+      "path": "fleschutz/query-smart-data.ps1",
+      "author": "fleschutz",
+      "description": "Queries and saves the S.M.A.R.T. data of your HDD's/SSD's"
+    },
+    "reboot": {
+      "path": "fleschutz/reboot.ps1",
+      "author": "fleschutz",
+      "description": "Reboots the computer (needs admin rights)"
+    },
+    "remind-me": {
+      "path": "fleschutz/remind-me.ps1",
+      "author": "fleschutz",
+      "description": "Creates a scheduled task that will display a popup message"
+    },
+    "remove-empty-dirs": {
+      "path": "fleschutz/remove-empty-dirs.ps1",
+      "author": "fleschutz",
+      "description": "Removes all empty subfolders within a directory tree"
+    },
+    "remove-print-jobs": {
+      "path": "fleschutz/remove-print-jobs.ps1",
+      "author": "fleschutz",
+      "description": "Removes all jobs from all printers"
+    },
+    "remove-tag": {
+      "path": "fleschutz/remove-tag.ps1",
+      "author": "fleschutz",
+      "description": "Removes a Git tag (locally, remote, or both)"
+    },
+    "replace-in-files": {
+      "path": "fleschutz/replace-in-files.ps1",
+      "author": "fleschutz",
+      "description": "Search and replace a pattern in the given files by the replacement"
+    },
+    "restart-network-adapters": {
+      "path": "fleschutz/restart-network-adapters.ps1",
+      "author": "fleschutz",
+      "description": "Restarts the network adapters (needs admin rights)"
+    },
+    "save-screenshot": {
+      "path": "fleschutz/save-screenshot.ps1",
+      "author": "fleschutz",
+      "description": "Saves a single screenshot"
+    },
+    "scan-ports": {
+      "path": "fleschutz/scan-ports.ps1",
+      "author": "fleschutz",
+      "description": "Scans the network for open/closed ports"
+    },
+    "search-filename": {
+      "path": "fleschutz/search-filename.ps1",
+      "author": "fleschutz",
+      "description": "Lists all files and folder names matching a search pattern"
+    },
+    "search-files": {
+      "path": "fleschutz/search-files.ps1",
+      "author": "fleschutz",
+      "description": "Searches for a text pattern in files"
+    },
+    "send-tcp": {
+      "path": "fleschutz/send-tcp.ps1",
+      "author": "fleschutz",
+      "description": "Sends a TCP message to an IP address and port"
+    },
+    "send-udp": {
+      "path": "fleschutz/send-udp.ps1",
+      "author": "fleschutz",
+      "description": "Sends a UDP datagram message to an IP address and port"
+    },
+    "set-timer": {
+      "path": "fleschutz/set-timer.ps1",
+      "author": "fleschutz",
+      "description": "Sets a timer for a countdown"
+    },
+    "set-wallpaper": {
+      "path": "fleschutz/set-wallpaper.ps1",
+      "author": "fleschutz",
+      "description": "Sets the given image file as desktop wallpaper"
+    },
+    "simulate-presence": {
+      "path": "fleschutz/simulate-presence.ps1",
+      "author": "fleschutz",
+      "description": "Simulate a human against burglars"
+    },
+    "start-ipfs-server": {
+      "path": "fleschutz/start-ipfs-server.ps1",
+      "author": "fleschutz",
+      "description": "Start an IPFS server"
+    },
+    "switch-branch": {
+      "path": "fleschutz/switch-branch.ps1",
+      "author": "fleschutz",
+      "description": "Switches the Git branch"
+    },
+    "switch-shelly1": {
+      "path": "fleschutz/switch-shelly1.ps1",
+      "author": "fleschutz",
+      "description": "Switches a Shelly1 device"
+    },
+    "sync-repo": {
+      "path": "fleschutz/sync-repo.ps1",
+      "author": "fleschutz",
+      "description": "Synchronizes a repo"
+    },
+    "turn-volume-down": {
+      "path": "fleschutz/turn-volume-down.ps1",
+      "author": "fleschutz",
+      "description": "Turns the volume down"
+    },
+    "turn-volume-off": {
+      "path": "fleschutz/turn-volume-off.ps1",
+      "author": "fleschutz",
+      "description": "Turn audio off"
+    },
+    "turn-volume-on": {
+      "path": "fleschutz/turn-volume-on.ps1",
+      "author": "fleschutz",
+      "description": "Turn audio on"
+    },
+    "turn-volume-up": {
+      "path": "fleschutz/turn-volume-up.ps1",
+      "author": "fleschutz",
+      "description": "Turns the volume up"
+    },
+    "wake-up": {
+      "path": "fleschutz/wake-up.ps1",
+      "author": "fleschutz",
+      "description": "Wakes up a computer using Wake-on-LAN"
+    },
+    "weather-report": {
+      "path": "fleschutz/weather-report.ps1",
+      "author": "fleschutz",
+      "description": "Lists the local weather report"
+    },
+    "weather": {
+      "path": "fleschutz/weather.ps1",
+      "author": "fleschutz",
+      "description": "Lists the current weather forecast"
+    },
+    "write-animated": {
+      "path": "fleschutz/write-animated.ps1",
+      "author": "fleschutz",
+      "description": "Writes animated text"
+    },
+    "write-big": {
+      "path": "fleschutz/write-big.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in big letters"
+    },
+    "write-blue": {
+      "path": "fleschutz/write-blue.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in a blue foreground color"
+    },
+    "write-braille": {
+      "path": "fleschutz/write-braille.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in Braille"
+    },
+    "write-changelog": {
+      "path": "fleschutz/write-changelog.ps1",
+      "author": "fleschutz",
+      "description": "Writes a changelog from Git commits"
+    },
+    "write-green": {
+      "path": "fleschutz/write-green.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in a green foreground color"
+    },
+    "write-lowercase": {
+      "path": "fleschutz/write-lowercase.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in lowercase letters"
+    },
+    "write-marquee": {
+      "path": "fleschutz/write-marquee.ps1",
+      "author": "fleschutz",
+      "description": "Writes text as marquee"
+    },
+    "write-morse-code": {
+      "path": "fleschutz/write-morse-code.ps1",
+      "author": "fleschutz",
+      "description": "Writes Morse code"
+    },
+    "write-motd": {
+      "path": "fleschutz/write-motd.ps1",
+      "author": "fleschutz",
+      "description": "Writes the message of the day"
+    },
+    "write-red": {
+      "path": "fleschutz/write-red.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in a red foreground color"
+    },
+    "write-rot13": {
+      "path": "fleschutz/write-rot13.ps1",
+      "author": "fleschutz",
+      "description": "Writes text encoded or decoded with ROT13"
+    },
+    "write-typewriter": {
+      "path": "fleschutz/write-typewriter.ps1",
+      "author": "fleschutz",
+      "description": "Writes text á la typewriter"
+    },
+    "write-uppercase": {
+      "path": "fleschutz/write-uppercase.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in uppercase letters"
+    },
+    "write-vertical": {
+      "path": "fleschutz/write-vertical.ps1",
+      "author": "fleschutz",
+      "description": "Writes text in vertical direction"
+    },
+    "add-context-menu-open-terminal": {
+      "path": "kobayashi/add-context-menu-open-terminal.ps1",
+      "author": "kobayashi",
+      "description": "Registers or unregisters an \"Open in Terminal (No Profile)\" context menu entry."
+    },
+    "change-system-locale": {
+      "path": "kobayashi/change-system-locale.ps1",
+      "author": "kobayashi",
+      "description": "Change the system locale"
+    },
+    "check-admin": {
+      "path": "kobayashi/check-admin.ps1",
+      "author": "kobayashi",
+      "description": "Checks if the current console is elevated"
+    },
+    "clean-duplicate-firewall-rules": {
+      "path": "kobayashi/clean-duplicate-firewall-rules.ps1",
+      "author": "kobayashi",
+      "description": "Finds and removes duplicate Windows Firewall rules interactively."
+    },
+    "clear-cache": {
+      "path": "kobayashi/clear-cache.ps1",
+      "author": "kobayashi",
+      "description": "Clears various Windows caches"
+    },
+    "click-left": {
+      "path": "kobayashi/click-left.ps1",
+      "author": "kobayashi",
+      "description": "Simulates one or more left mouse clicks"
+    },
+    "click-middle": {
+      "path": "kobayashi/click-middle.ps1",
+      "author": "kobayashi",
+      "description": "Simulates one or more middle mouse clicks"
+    },
+    "click-right": {
+      "path": "kobayashi/click-right.ps1",
+      "author": "kobayashi",
+      "description": "Simulates one or more right mouse clicks"
+    },
+    "compare-files": {
+      "path": "kobayashi/compare-files.ps1",
+      "author": "kobayashi",
+      "description": "Compares the contents of two files with color-coded differences"
+    },
+    "compare-folders": {
+      "path": "kobayashi/compare-folders.ps1",
+      "author": "kobayashi",
+      "description": "Compares the contents of two folders with color-coded differences"
+    },
+    "connect-to-postgres": {
+      "path": "kobayashi/connect-to-postgres.ps1",
+      "author": "kobayashi",
+      "description": "Connect to postgres database using harlequin."
+    },
+    "convert-file-encoding": {
+      "path": "kobayashi/convert-file-encoding.ps1",
+      "author": "kobayashi",
+      "description": "Re-encodes a file from one character encoding to another."
+    },
+    "convert-img2pdf": {
+      "path": "kobayashi/convert-img2pdf.ps1",
+      "author": "kobayashi",
+      "description": "Converts (merges) images into a single PDF in filename order"
+    },
+    "convert-md2pdf": {
+      "path": "kobayashi/convert-md2pdf.ps1",
+      "author": "kobayashi",
+      "description": "Converts a .md file into a pdf file"
+    },
+    "convert-pdf2img": {
+      "path": "kobayashi/convert-pdf2img.ps1",
+      "author": "kobayashi",
+      "description": "Converts a PDF into images (one image per page)"
+    },
+    "convert-ps2bat-v2": {
+      "path": "kobayashi/convert-ps2bat-v2.ps1",
+      "author": "kobayashi",
+      "description": ""
+    },
+    "convert-string-encoding": {
+      "path": "kobayashi/convert-string-encoding.ps1",
+      "author": "kobayashi",
+      "description": "Re-encodes a string from one character encoding to another."
+    },
+    "convert-to-filename": {
+      "path": "kobayashi/convert-to-filename.ps1",
+      "author": "kobayashi",
+      "description": ""
+    },
+    "convert-video2hls": {
+      "path": "kobayashi/convert-video2hls.ps1",
+      "author": "kobayashi",
+      "description": "Converts a video file to HLS (HTTP Live Streaming) format"
+    },
+    "copy-files": {
+      "path": "kobayashi/copy-files.ps1",
+      "author": "kobayashi",
+      "description": "copy the given files to the clipboard"
+    },
+    "copy-structure": {
+      "path": "kobayashi/copy-structure.ps1",
+      "author": "kobayashi",
+      "description": "Copies folder structure with controllable depth and file options"
+    },
+    "count-dirs": {
+      "path": "kobayashi/count-dirs.ps1",
+      "author": "kobayashi",
+      "description": "Counts directories in specified paths."
+    },
+    "count-files": {
+      "path": "kobayashi/count-files.ps1",
+      "author": "kobayashi",
+      "description": "Counts files in specified directories."
+    },
+    "count-lines": {
+      "path": "kobayashi/count-lines.ps1",
+      "author": "kobayashi",
+      "description": "Counts lines in files of specified types in given directories."
+    },
+    "create-links": {
+      "path": "kobayashi/create-links.ps1",
+      "author": "kobayashi",
+      "description": "Create symbolic links for the given files or directories"
+    },
+    "detect-keyboard-input": {
+      "path": "kobayashi/detect-keyboard-input.ps1",
+      "author": "kobayashi",
+      "description": "Detects and echoes all keyboard input"
+    },
+    "detect-mouse-click": {
+      "path": "kobayashi/detect-mouse-click.ps1",
+      "author": "kobayashi",
+      "description": "Detects and displays all mouse click events using GetAsyncKeyState"
+    },
+    "disable-ipv6": {
+      "path": "kobayashi/disable-ipv6.ps1",
+      "author": "kobayashi",
+      "description": "Disables IPv6 on all network adapters"
+    },
+    "drag-left": {
+      "path": "kobayashi/drag-left.ps1",
+      "author": "kobayashi",
+      "description": "Simulates a left mouse button drag operation"
+    },
+    "drag-middle": {
+      "path": "kobayashi/drag-middle.ps1",
+      "author": "kobayashi",
+      "description": "Simulates a middle mouse button drag operation"
+    },
+    "drag-mouse": {
+      "path": "kobayashi/drag-mouse.ps1",
+      "author": "kobayashi",
+      "description": "Simulates a mouse drag operation based on two user-specified click positions"
+    },
+    "drag-right": {
+      "path": "kobayashi/drag-right.ps1",
+      "author": "kobayashi",
+      "description": "Simulates a right mouse button drag operation"
+    },
+    "enable-ipv6": {
+      "path": "kobayashi/enable-ipv6.ps1",
+      "author": "kobayashi",
+      "description": "Enables IPv6 on all network adapters"
+    },
+    "expand-folder": {
+      "path": "kobayashi/expand-folder.ps1",
+      "author": "kobayashi",
+      "description": "expand the files to the current directory"
+    },
+    "extract-archives": {
+      "path": "kobayashi/extract-archives.ps1",
+      "author": "kobayashi",
+      "description": ""
+    },
+    "fix-ghost-keyboard": {
+      "path": "kobayashi/fix-ghost-keyboard.ps1",
+      "author": "kobayashi",
+      "description": "Fixes the persistent \"Ghost\" English (en-US) keyboard layout on Windows 11."
+    },
+    "flatten-nested-folders": {
+      "path": "kobayashi/flatten-nested-folders.ps1",
+      "author": "kobayashi",
+      "description": "Flattens nested folders with identical names"
+    },
+    "get-cmdlet-alias": {
+      "path": "kobayashi/get-cmdlet-alias.ps1",
+      "author": "kobayashi",
+      "description": "Get the aliases of a cmdlet"
+    },
+    "get-hex-dump": {
+      "path": "kobayashi/get-hex-dump.ps1",
+      "author": "kobayashi",
+      "description": "Outputs the contents of a file as a hex dump."
+    },
+    "get-mouse-position": {
+      "path": "kobayashi/get-mouse-position.ps1",
+      "author": "kobayashi",
+      "description": "Gets the current mouse cursor position"
+    },
+    "get-profile-info": {
+      "path": "kobayashi/get-profile-info.ps1",
+      "author": "kobayashi",
+      "description": "Get profile information"
+    },
+    "get-pub-ip": {
+      "path": "kobayashi/get-pub-ip.ps1",
+      "author": "kobayashi",
+      "description": "Gets the public IP address of the current machine"
+    },
+    "get-recent-commands": {
+      "path": "kobayashi/get-recent-commands.ps1",
+      "author": "kobayashi",
+      "description": "Displays information about recent PowerShell commands with millisecond precision"
+    },
+    "get-screen-size": {
+      "path": "kobayashi/get-screen-size.ps1",
+      "author": "kobayashi",
+      "description": "Show the size of your monitor in pixels."
+    },
+    "get-window-position": {
+      "path": "kobayashi/get-window-position.ps1",
+      "author": "kobayashi",
+      "description": "Get the position of a window"
+    },
+    "group-by-time": {
+      "path": "kobayashi/group-by-time.ps1",
+      "author": "kobayashi",
+      "description": "Group the files by time"
+    },
+    "hibernate-for-duration": {
+      "path": "kobayashi/hibernate-for-duration.ps1",
+      "author": "kobayashi",
+      "description": "Hibernates the computer for a specified duration"
+    },
+    "hibernate-until": {
+      "path": "kobayashi/hibernate-until.ps1",
+      "author": "kobayashi",
+      "description": "Hibernates the computer and wakes it up at a specified time"
+    },
+    "install-pwsh": {
+      "path": "kobayashi/install-pwsh.ps1",
+      "author": "kobayashi",
+      "description": "Install Powershell 7"
+    },
+    "invoke-ie-automation": {
+      "path": "kobayashi/invoke-ie-automation.ps1",
+      "author": "kobayashi",
+      "description": "Automates Internet Explorer using COM automation."
+    },
+    "invoke-speech": {
+      "path": "kobayashi/invoke-speech.ps1",
+      "author": "kobayashi",
+      "description": "Text-to-speech utility using SAPI.SpVoice."
+    },
+    "list-items-size": {
+      "path": "kobayashi/list-items-size.ps1",
+      "author": "kobayashi",
+      "description": "Lists direct child item sizes and file counts"
+    },
+    "list-links": {
+      "path": "kobayashi/list-links.ps1",
+      "author": "kobayashi",
+      "description": "list symbolic links in the give directory path."
+    },
+    "list-win32-cls": {
+      "path": "kobayashi/list-win32-cls.ps1",
+      "author": "kobayashi",
+      "description": "Lists all PowerShell win32 wmi classes."
+    },
+    "move-to-recycle": {
+      "path": "kobayashi/move-to-recycle.ps1",
+      "author": "kobayashi",
+      "description": "Moves files and directories to the recycle bin."
+    },
+    "open-cmd": {
+      "path": "kobayashi/open-cmd.ps1",
+      "author": "kobayashi",
+      "description": "Starts a new CMD window and closes the current PowerShell session."
+    },
+    "open-onedrive-folder": {
+      "path": "kobayashi/open-onedrive-folder.ps1",
+      "author": "kobayashi",
+      "description": "Opens the user's onedrive folder"
+    },
+    "open-recycle-bin": {
+      "path": "kobayashi/open-recycle-bin.ps1",
+      "author": "kobayashi",
+      "description": "Open the recycle bin in Windows."
+    },
+    "open-videos-folder": {
+      "path": "kobayashi/open-videos-folder.ps1",
+      "author": "kobayashi",
+      "description": "Opens the user's videos folder"
+    },
+    "paste-files": {
+      "path": "kobayashi/paste-files.ps1",
+      "author": "kobayashi",
+      "description": "paste the items from the clipboard to the given path"
+    },
+    "remove-duplicate-files": {
+      "path": "kobayashi/remove-duplicate-files.ps1",
+      "author": "kobayashi",
+      "description": "Removes duplicate files in a directory"
+    },
+    "remove-links": {
+      "path": "kobayashi/remove-links.ps1",
+      "author": "kobayashi",
+      "description": "Remove symbolic links in the give directory path"
+    },
+    "restart-explorer": {
+      "path": "kobayashi/restart-explorer.ps1",
+      "author": "kobayashi",
+      "description": "Restarts the Windows Explorer process."
+    },
+    "run-cmds-in-wt": {
+      "path": "kobayashi/run-cmds-in-wt.ps1",
+      "author": "kobayashi",
+      "description": "Open Windows Terminal with split panes, each running one command."
+    },
+    "scroll-wheel-down": {
+      "path": "kobayashi/scroll-wheel-down.ps1",
+      "author": "kobayashi",
+      "description": "Simulates smooth mouse wheel scrolling down"
+    },
+    "scroll-wheel-up": {
+      "path": "kobayashi/scroll-wheel-up.ps1",
+      "author": "kobayashi",
+      "description": "Simulates smooth mouse wheel scrolling up"
+    },
+    "search-utils": {
+      "path": "kobayashi/search-utils.ps1",
+      "author": "kobayashi",
+      "description": "Interactive real-time search for utils scripts"
+    },
+    "set-background-color": {
+      "path": "kobayashi/set-background-color.ps1",
+      "author": "kobayashi",
+      "description": "Set the background color of the console window"
+    },
+    "set-classic-right-click-menu": {
+      "path": "kobayashi/set-classic-right-click-menu.ps1",
+      "author": "kobayashi",
+      "description": "Sets classic right-click menu"
+    },
+    "set-default-right-click-menu": {
+      "path": "kobayashi/set-default-right-click-menu.ps1",
+      "author": "kobayashi",
+      "description": "Restores default right-click menu"
+    },
+    "set-foreground-color": {
+      "path": "kobayashi/set-foreground-color.ps1",
+      "author": "kobayashi",
+      "description": "Set the color of the console window"
+    },
+    "set-mouse-position": {
+      "path": "kobayashi/set-mouse-position.ps1",
+      "author": "kobayashi",
+      "description": "Sets the mouse cursor position"
+    },
+    "set-time-to-utc": {
+      "path": "kobayashi/set-time-to-utc.ps1",
+      "author": "kobayashi",
+      "description": "Sets system time to UTC"
+    },
+    "set-title": {
+      "path": "kobayashi/set-title.ps1",
+      "author": "kobayashi",
+      "description": "Set the title of the console window"
+    },
+    "set-window-foreground": {
+      "path": "kobayashi/set-window-foreground.ps1",
+      "author": "kobayashi",
+      "description": "Set the foreground window to the first instance of a process with a given name."
+    },
+    "set-window-position": {
+      "path": "kobayashi/set-window-position.ps1",
+      "author": "kobayashi",
+      "description": "Set the foreground window to the first instance of a process with a given name."
+    },
+    "show-notification": {
+      "path": "kobayashi/show-notification.ps1",
+      "author": "kobayashi",
+      "description": "Shows Windows notifications using WScript.Shell."
+    },
+    "show-object": {
+      "path": "kobayashi/show-object.ps1",
+      "author": "kobayashi",
+      "description": "Provides a graphical interface to let you explore and navigate an object."
+    },
+    "show-system-locale": {
+      "path": "kobayashi/show-system-locale.ps1",
+      "author": "kobayashi",
+      "description": "Show the system locale"
+    },
+    "toggle-capslock": {
+      "path": "kobayashi/toggle-capslock.ps1",
+      "author": "kobayashi",
+      "description": "Toggles the CapsLock key state and displays its new status"
+    },
+    "toggle-folder-type": {
+      "path": "kobayashi/toggle-folder-type.ps1",
+      "author": "kobayashi",
+      "description": ""
+    },
+    "toggle-insert": {
+      "path": "kobayashi/toggle-insert.ps1",
+      "author": "kobayashi",
+      "description": "Toggles the Insert key state and displays its new status"
+    },
+    "toggle-numlock": {
+      "path": "kobayashi/toggle-numlock.ps1",
+      "author": "kobayashi",
+      "description": "Toggles the NumLock key state and displays its new status"
+    },
+    "tree": {
+      "path": "kobayashi/tree.ps1",
+      "author": "kobayashi",
+      "description": "Displays directory structure in a tree-like format"
+    },
+    "update-m3u8-urls": {
+      "path": "kobayashi/update-m3u8-urls.ps1",
+      "author": "kobayashi",
+      "description": "Updates ts file paths in m3u8 playlist to full URLs"
+    },
+    "update-pwsh": {
+      "path": "kobayashi/update-pwsh.ps1",
+      "author": "kobayashi",
+      "description": "Updates PowerShell to the latest version."
+    },
+    "windefender": {
+      "path": "kobayashi/windefender.ps1",
+      "author": "kobayashi",
+      "description": "Configure Windows defender"
+    }
+  }
 }

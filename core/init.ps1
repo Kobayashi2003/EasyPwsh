@@ -7,6 +7,7 @@ Get-ChildItem (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "star
 & (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "modules\init-modules.ps1")
 . (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "functions\init-functions.ps1")
 
-# [Environment]::SetEnvironmentVariable("PATH", (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "utils") + [IO.Path]::PathSeparator + $env:PATH, "User")
-$env:PATH = (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "utils") + [IO.Path]::PathSeparator + $env:PATH
+$utilsDir = Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "utils"
+$utilsPaths = @($utilsDir) + @(Get-ChildItem -Path $utilsDir -Directory | ForEach-Object { $_.FullName })
+$env:PATH = ($utilsPaths -join [IO.Path]::PathSeparator) + [IO.Path]::PathSeparator + $env:PATH
 $env:PATH = (Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "test") + [IO.Path]::PathSeparator + $env:PATH
