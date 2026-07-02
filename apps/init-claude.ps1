@@ -35,3 +35,30 @@ if (Get-Command 'claude' -ErrorAction SilentlyContinue) {
     }
 }
 #endregion
+
+#region claude proxy wrapper — always run claude through the 127.0.0.1:7890 proxy
+# Resolve the real executable (not this function) so re-sourcing the profile can't recurse.
+$global:CLAUDE_EXE_PATH = Get-Command 'claude' -CommandType Application -ErrorAction SilentlyContinue |
+    Select-Object -First 1 -ExpandProperty Source
+if ($global:CLAUDE_EXE_PATH) {
+    # global: scope is required because init-*.ps1 apps are loaded via '&' (child scope);
+    # a plain function would not survive back into the session.
+    function global:claude {
+        $names = 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY'
+        $saved = @{}
+        foreach ($n in $names) { $saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process') }
+        try {
+            foreach ($n in $names) { Set-Item "Env:$n" 'http://127.0.0.1:7890' }
+            & $global:CLAUDE_EXE_PATH @args
+        } finally {
+            foreach ($n in $names) {
+                if ($null -eq $saved[$n]) {
+                    if (Test-Path "Env:$n") { Remove-Item "Env:$n" }
+                } else {
+                    Set-Item "Env:$n" $saved[$n]
+                }
+            }
+        }
+    }
+}
+#endregion
