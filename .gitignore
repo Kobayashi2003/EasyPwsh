@@ -1,3 +1,6 @@
 .vscode/
 .claude/
 Temp/
+
+# Generated startup caches (compiled WinAPI DLL, tool init scripts, conda hook)
+downloads/cache/

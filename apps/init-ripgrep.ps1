@@ -5,6 +5,8 @@
     https://github.com/BurntSushi/ripgrep
 #>
 
-if (Get-Command 'rg' -ErrorAction SilentlyContinue) {
-    Set-Alias -Name grep -Value rg -Option AllScope -Scope Global -Force
+if (-not (Get-Command 'rg' -ErrorAction SilentlyContinue)) {
+    return
 }
+
+Set-Alias -Name grep -Value rg -Option AllScope -Scope Global -Force

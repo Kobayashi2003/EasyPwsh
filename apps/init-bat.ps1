@@ -6,7 +6,9 @@
 #>
 
 #region bat initialize
-if (Get-Command 'bat' -ErrorAction SilentlyContinue) {
-    Set-Alias -Name cat -Value bat -Option AllScope -Scope Global -Force
+if (-not (Get-Command 'bat' -ErrorAction SilentlyContinue)) {
+    return
 }
+
+Set-Alias -Name cat -Value bat -Option AllScope -Scope Global -Force
 #endregion

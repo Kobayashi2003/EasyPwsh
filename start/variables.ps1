@@ -27,6 +27,12 @@ $global:PROGRAMFILESX86= [Environment]::GetFolderPath("ProgramFilesX86")
 
 # ─── Feature flags ────────────────────────────────────────────────────────────
 
+# Startup profiler: when $true, core/init.ps1 prints a per-block/per-file timing
+# table at the end of loading. Default-only assignment so it can be pre-set before
+# dot-sourcing init.ps1 (e.g. `$global:PROFILE_STARTUP=$true; . core\init.ps1`)
+# without being clobbered here.
+if ($null -eq $global:PROFILE_STARTUP) { $global:PROFILE_STARTUP = $false }
+
 $global:SET_APPS_ALIAS  = $true
 
 $global:IMPORT_MODULES  = $true

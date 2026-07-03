@@ -12,16 +12,19 @@ if (-not (Get-Command "ffmpeg" -ErrorAction SilentlyContinue)) {
 function global:ff-convert {
     <#
     .SYNOPSIS
-        Convert a video file to a different format.
+        Remux a video into a different container without re-encoding (stream copy).
+        Fast, but only succeeds when the existing codecs are valid for the target
+        container (e.g. .mkv -> .mp4 with H.264/AAC). For a true re-encode or to
+        shrink a file, use ff-compress instead.
     .PARAMETER InputFile
         Source video file path.
     .PARAMETER OutputFile
-        Output file path. Extension determines the target format.
+        Output file path. Extension determines the target container.
     .PARAMETER Overwrite
         Overwrite output file if it already exists.
     .EXAMPLE
-        ff-convert input.avi output.mp4
-        ff-convert input.mkv output.mp4 -Overwrite
+        ff-convert input.mkv output.mp4
+        ff-convert input.mov output.mp4 -Overwrite
     #>
     param(
         [Parameter(Mandatory, Position = 0)]
@@ -219,4 +222,102 @@ function global:ff-screenshot {
     $overwriteFlag = if ($Overwrite) { "-y" } else { "-n" }
 
     ffmpeg $overwriteFlag -ss $Time -i $InputFile -frames:v 1 $OutputFile
+}
+
+function global:ff-compress {
+    <#
+    .SYNOPSIS
+        Re-encode a video to H.264/AAC to reduce its size, using quality-based CRF.
+    .PARAMETER InputFile
+        Source video file path.
+    .PARAMETER OutputFile
+        Output file path. Defaults to "<input>_compressed.mp4".
+    .PARAMETER Crf
+        Constant Rate Factor, 0-51. Lower = better quality / larger file. Default 23.
+    .PARAMETER Preset
+        x264 speed/compression preset. Default "medium".
+    .PARAMETER Overwrite
+        Overwrite output file if it already exists.
+    .EXAMPLE
+        ff-compress input.mkv
+        ff-compress input.mp4 -Crf 28 -Preset slow -Overwrite
+    #>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$InputFile,
+        [string]$OutputFile,
+        [ValidateRange(0, 51)]
+        [int]$Crf = 23,
+        [ValidateSet('ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow')]
+        [string]$Preset = 'medium',
+        [switch]$Overwrite
+    )
+
+    if (-not (Test-Path -LiteralPath $InputFile)) {
+        Write-Error "Input file not found: $InputFile"
+        return
+    }
+
+    if (-not $OutputFile) {
+        $base = [System.IO.Path]::GetFileNameWithoutExtension($InputFile)
+        $dir  = [System.IO.Path]::GetDirectoryName($InputFile)
+        $OutputFile = Join-Path $dir "${base}_compressed.mp4"
+    }
+
+    $overwriteFlag = if ($Overwrite) { "-y" } else { "-n" }
+
+    ffmpeg $overwriteFlag -i $InputFile -c:v libx264 -crf $Crf -preset $Preset -c:a aac -b:a 128k $OutputFile
+}
+
+function global:ff-gif {
+    <#
+    .SYNOPSIS
+        Convert a video (or a segment of it) to an optimized GIF using a two-pass
+        palette (palettegen/paletteuse) for good color quality and small size.
+    .PARAMETER InputFile
+        Source video file path.
+    .PARAMETER OutputFile
+        Output GIF path. Defaults to "<input>.gif".
+    .PARAMETER Fps
+        Frame rate of the GIF. Default 12.
+    .PARAMETER Width
+        Output width in pixels; height is scaled automatically. Default 480.
+    .PARAMETER Start
+        Optional start time (HH:MM:SS, MM:SS, or seconds).
+    .PARAMETER Duration
+        Optional duration to capture from Start (HH:MM:SS, MM:SS, or seconds).
+    .PARAMETER Overwrite
+        Overwrite output file if it already exists.
+    .EXAMPLE
+        ff-gif clip.mp4
+        ff-gif clip.mp4 -Start 5 -Duration 3 -Fps 15 -Width 600 -Overwrite
+    #>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$InputFile,
+        [string]$OutputFile,
+        [int]$Fps = 12,
+        [int]$Width = 480,
+        [string]$Start,
+        [string]$Duration,
+        [switch]$Overwrite
+    )
+
+    if (-not (Test-Path -LiteralPath $InputFile)) {
+        Write-Error "Input file not found: $InputFile"
+        return
+    }
+
+    if (-not $OutputFile) {
+        $base = [System.IO.Path]::GetFileNameWithoutExtension($InputFile)
+        $dir  = [System.IO.Path]::GetDirectoryName($InputFile)
+        $OutputFile = Join-Path $dir "${base}.gif"
+    }
+
+    $overwriteFlag = if ($Overwrite) { "-y" } else { "-n" }
+    $seekArgs = if ($Start) { @("-ss", $Start) } else { @() }
+    $durArgs  = if ($Duration) { @("-t", $Duration) } else { @() }
+    $filter   = "fps=$Fps,scale=${Width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"
+
+    ffmpeg $overwriteFlag @seekArgs @durArgs -i $InputFile -filter_complex $filter $OutputFile
 }

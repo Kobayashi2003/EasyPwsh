@@ -1373,7 +1373,28 @@ Set-PSReadLineKeyHandler -Key Ctrl+V `
     {
         # Get clipboard text - remove trailing spaces, convert \r\n to \n, and remove the final \n.
         $text = ([System.Windows.Clipboard]::GetText() -replace "\p{Zs}*`r?`n","`n").TrimEnd()
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert("@'`n$text`n'@")
+
+        # Auto-select the quoting style so the pasted text stays literal:
+        #   - no single quote                       -> '...'   (literal, no expansion)
+        #   - has ' but no " / $ / `                -> "..."
+        #   - multi-line, or none of the above fit  -> @'...'@ (literal here-string)
+        $needsHereString = $text -match "`n"
+        if (-not $needsHereString) {
+            if (-not $text.Contains("'")) {
+                $quoted = "'$text'"
+            }
+            elseif (-not ($text.Contains('"') -or $text.Contains('$') -or $text.Contains('`'))) {
+                $quoted = "`"$text`""
+            }
+            else {
+                $needsHereString = $true
+            }
+        }
+        if ($needsHereString) {
+            $quoted = "@'`n$text`n'@"
+        }
+
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quoted)
     }
     else
     {

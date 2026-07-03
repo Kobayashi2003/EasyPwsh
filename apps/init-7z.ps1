@@ -160,3 +160,86 @@ function global:7z-extract {
         }
     }
 }
+
+function global:7z-create {
+    <#
+    .SYNOPSIS
+        Create an archive from files/folders with 7-Zip.
+    .PARAMETER Destination
+        Output archive path. The extension selects the format (.7z, .zip, ...).
+    .PARAMETER Path
+        One or more files/directories to add to the archive.
+    .PARAMETER Password
+        Encrypt the archive with this password. For .7z archives the file names
+        are encrypted too (header encryption).
+    .PARAMETER Level
+        Compression level 0-9 (0 = store/no compression, 9 = ultra). Default 5.
+    .PARAMETER Volumes
+        Split the archive into volumes of this size, e.g. 100m, 1g.
+    .EXAMPLE
+        7z-create out.7z .\src
+        7z-create backup.7z .\a .\b -Password hunter2 -Level 9
+        7z-create big.7z .\data -Volumes 100m
+    #>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Destination,
+        [Parameter(Mandatory, Position = 1, ValueFromRemainingArguments)]
+        [string[]]$Path,
+        [string]$Password,
+        [ValidateRange(0, 9)]
+        [int]$Level = 5,
+        [string]$Volumes
+    )
+
+    foreach ($p in $Path) {
+        if (-not (Test-Path -LiteralPath $p)) {
+            Write-Error "Path not found: $p"
+            return
+        }
+    }
+
+    $arguments = @("a", $Destination, "-mx=$Level", "-y")
+    if ($Password) {
+        $arguments += "-p$Password"
+        # Header (file-name) encryption is a 7z-format-only feature.
+        if ($Destination -match '\.7z$') { $arguments += "-mhe=on" }
+    }
+    if ($Volumes) { $arguments += "-v$Volumes" }
+    $arguments += $Path
+
+    7z @arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Archive creation failed ($LASTEXITCODE): $Destination"
+    }
+}
+
+function global:7z-list {
+    <#
+    .SYNOPSIS
+        List the contents of an archive without extracting it.
+    .PARAMETER Path
+        Archive file.
+    .PARAMETER Password
+        Password for encrypted archives.
+    .EXAMPLE
+        7z-list archive.7z
+        7z-list secret.zip -Password hunter2
+    #>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string]$Path,
+        [string]$Password
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        Write-Error "Archive not found: $Path"
+        return
+    }
+
+    $arguments = @("l", $Path)
+    if ($Password) { $arguments += "-p$Password" }
+
+    7z @arguments
+}

@@ -1,4 +1,15 @@
-﻿Add-Type -TypeDefinition @'
+﻿# Compile the P/Invoke helpers once to a cached DLL. Re-running the C# compiler
+# every shell costs ~450ms; loading a prebuilt DLL is ~10-50ms. The cache is
+# invalidated automatically when this source file is edited (mtime comparison).
+$__winapiDir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
+$__winapiDll   = Join-Path $__winapiDir 'WinAPI.dll'
+$__winapiFresh = (Test-Path $__winapiDll) -and
+    ((Get-Item $__winapiDll).LastWriteTimeUtc -ge (Get-Item $PSCommandPath).LastWriteTimeUtc)
+
+if (-not ('WinApi' -as [type])) {
+    if (-not $__winapiFresh) {
+        if (-not (Test-Path $__winapiDir)) { New-Item -ItemType Directory -Force -Path $__winapiDir | Out-Null }
+        Add-Type -TypeDefinition @'
     using System;
     using System.Runtime.InteropServices;
 
@@ -170,4 +181,7 @@
             mouse_event(MOUSEEVENTF_WHEEL, 0, 0, (uint)amount, UIntPtr.Zero);
         }
     }
-'@
+'@ -OutputAssembly $__winapiDll
+    }
+    Add-Type -Path $__winapiDll
+}

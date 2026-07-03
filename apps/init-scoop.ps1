@@ -116,13 +116,17 @@ if (!(Get-Command "scoop" -ErrorAction SilentlyContinue)) {
     }
 }
 
-if (Get-Command "scoop" -ErrorAction SilentlyContinue) {
-    $scoop_conf = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\scoop\config.json"
-    $scoop_conf_current_user = Join-Path $env:USERPROFILE -ChildPath ".config\scoop\config.json"
+# If Scoop is still unavailable (not installed, or the user declined above),
+# there is nothing left to configure — bail out before defining scoop-* helpers.
+if (-not (Get-Command "scoop" -ErrorAction SilentlyContinue)) {
+    return
+}
 
-    if (!(Test-Path $scoop_conf_current_user)) {
-        & sudo New-Item -Path $scoop_conf_current_user -ItemType SymbolicLink -Value $scoop_conf
-    }
+$scoop_conf = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\scoop\config.json"
+$scoop_conf_current_user = Join-Path $env:USERPROFILE -ChildPath ".config\scoop\config.json"
+
+if (!(Test-Path $scoop_conf_current_user)) {
+    & sudo New-Item -Path $scoop_conf_current_user -ItemType SymbolicLink -Value $scoop_conf
 }
 
 function global:scoop-check-update {
