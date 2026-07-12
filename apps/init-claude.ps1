@@ -37,7 +37,7 @@ if ($current_json -ne $desired_json) {
 }
 #endregion
 
-#region claude proxy wrapper — always run claude through the 127.0.0.1:7890 proxy
+#region claude proxy wrapper — always run claude through $global:PROXY_ADDRESS
 # Resolve the real executable (not this function) so re-sourcing the profile can't recurse.
 $global:CLAUDE_EXE_PATH = Get-Command 'claude' -CommandType Application -ErrorAction SilentlyContinue |
     Select-Object -First 1 -ExpandProperty Source
@@ -49,7 +49,7 @@ if ($global:CLAUDE_EXE_PATH) {
         $saved = @{}
         foreach ($n in $names) { $saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process') }
         try {
-            foreach ($n in $names) { Set-Item "Env:$n" 'http://127.0.0.1:7890' }
+            foreach ($n in $names) { Set-Item "Env:$n" "http://$($global:PROXY_ADDRESS)" }
             & $global:CLAUDE_EXE_PATH @args
         } finally {
             foreach ($n in $names) {

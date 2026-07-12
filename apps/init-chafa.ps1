@@ -21,16 +21,22 @@ function global:view-image { param (
     [string[]] $chafaArgs
 )
 
-    if ($isUrl) {
-        $tmp = "$env:TEMP\$((New-Guid).ToString())"
-        Invoke-WebRequest -Uri $path -OutFile $tmp
-        $path = $tmp
-    }
+    $tmp = $null
 
-    # & chafa $path --clear --align 'center,center' --optimize 0
-    & chafa $path @chafaArgs
+    try {
+        if ($isUrl) {
+            # Keep the extension: chafa picks its loader from the file name.
+            $extension = [System.IO.Path]::GetExtension(([Uri] $path).AbsolutePath)
+            $tmp = "$env:TEMP\$((New-Guid).ToString())$extension"
+            Invoke-WebRequest -Uri $path -OutFile $tmp
+            $path = $tmp
+        }
 
-    if ($isUrl) {
-        Remove-Item $path
+        # & chafa $path --clear --align 'center,center' --optimize 0
+        & chafa $path @chafaArgs
+    } finally {
+        if ($tmp -and (Test-Path -LiteralPath $tmp)) {
+            Remove-Item -LiteralPath $tmp -Force
+        }
     }
 }

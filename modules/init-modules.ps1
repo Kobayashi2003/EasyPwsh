@@ -1,12 +1,13 @@
-﻿function global:check-module {
+function global:check-module {
 <#
 .SYNOPSIS
-    Check if module is installed
+    Check if module is installed, installing it when no local version satisfies
+    the constraint.
 
 .PARAMETER name
     Name of the module
 .PARAMETER version
-    Version of the module
+    Version constraint of the module
 
 .EXAMPLE
     check-module -name Terminal-Icons
@@ -18,8 +19,8 @@
     check-module -name PSReadLine -version '>2.3.4'
 
 .OUTPUTS
-    if valid, an a valiable version of the module [string]
-    if invalid, return $null
+    The satisfying version of the module [string], or $null when none could be
+    resolved or installed.
 #>
 
     [CmdletBinding()]
@@ -31,113 +32,75 @@
         [string] $version = "latest"
     )
 
+    # [version] objects, not strings: string ordering puts 2.10.0 below 2.3.4.
     $installed_versions = @(
-        Get-Module -ListAvailable |
-        Where-Object { $_.Name -eq $name } |
+        Get-Module -ListAvailable -Name $name |
         Sort-Object -Property Version -Descending |
-        foreach { $_.Version.ToString() })
+        ForEach-Object { $_.Version })
+
+    # Install $name and return the version that was installed, or $null on failure.
+    function Install-Resolved([hashtable] $find_args) {
+        try {
+            Write-Warning "No installed version of $name satisfies '$version'. Installing..."
+            $new_version = (Find-Module -Name $name @find_args).Version
+            if ($null -eq $new_version) {
+                throw "Unable to find a version of $name matching '$version'"
+            }
+            sudo Install-Module -Name $name -RequiredVersion $new_version -Force
+            return $new_version.ToString()
+        } catch {
+            Write-Host "Failed to install $name module: $_" -ForegroundColor Red
+            return $null
+        }
+    }
 
     if ($version -eq "latest") {
-        if ($installed_versions.Length -gt 0) {
-            return $installed_versions[0]
+        if ($installed_versions.Count -gt 0) {
+            return $installed_versions[0].ToString()
         }
-        try {
-            Write-Host "Module $name not found. Installing..." -ForegroundColor Yellow
-            $new_version = (Find-Module -Name $name).Version
-            if ($new_version -eq $null) {
-                throw "Unable to find latest version of $name module"
-            }
-            sudo Install-Module -Name $name -RequiredVersion $new_version -Force
-        } catch {
-            Write-Host "Failed to install $name module: $_" -ForegroundColor Red
-            return  $null
-        }
-        return $new_version
+        return Install-Resolved @{}
     }
 
-    $version_raw = $version.replace('=', '').replace('>', '').replace('<', '')
+    $version_raw = [version]($version -replace '[=<>]', '')
+    $accepts_equal = $version.Contains('=')
 
-    if (-not ($version_raw -match '^[0-9]+\.[0-9]+\.[0-9]+$')) {
-        throw "Invalid version format:$version_raw"
-    }
-
-    if ($version.contains('>')) {
+    if ($version.StartsWith('>')) {
         foreach ($v in $installed_versions) {
-            if ($v -gt $version_raw) {
-                return $v
-            } elseif (($v -eq $version_raw) -and ($version.contains('='))) {
-                return $v
+            if (($v -gt $version_raw) -or ($accepts_equal -and $v -eq $version_raw)) {
+                return $v.ToString()
             }
         }
-        try {
-            Write-Warning "Unable to find a version satisfying $version. Installing..."
-            $new_version = (Find-Module -Name $name -MinimumVersion $version_raw).Version
-            if ($new_version -eq $null) {
-                throw "Unable to find latest version of $name module"
-            }
-            sudo Install-Module -Name $name -RequiredVersion $new_version -Force
-        } catch {
-            Write-Host "Failed to install $name module: $_" -ForegroundColor Red
-            return  $null
-        }
-        return $new_version
+        return Install-Resolved @{ MinimumVersion = $version_raw.ToString() }
     }
 
-    if ($version.contains('<')) {
+    if ($version.StartsWith('<')) {
         foreach ($v in $installed_versions) {
-            if ($v -lt $version_raw) {
-                return $v
-            } elseif (($v -eq $version_raw) -and ($version.contains('='))) {
-                return $v
+            if (($v -lt $version_raw) -or ($accepts_equal -and $v -eq $version_raw)) {
+                return $v.ToString()
             }
         }
-        try {
-            Write-Warning "Unable to find a version satisfying $version. Installing..."
-            $new_version = (Find-Module -Name $name -MaximumVersion $version_raw).Version
-            if ($new_version -eq $null) {
-                throw "Unable to find latest version of $name module"
-            }
-            sudo Install-Module -Name $name -RequiredVersion $new_version -Force
-        } catch {
-            Write-Host "Failed to install $name module: $_" -ForegroundColor Red
-            return  $null
-        }
-        return $new_version
+        return Install-Resolved @{ MaximumVersion = $version_raw.ToString() }
     }
 
-    if ($version.contains('==')) {
-        if ($installed_versions -contains $version_raw) {
-            return $version_raw
-        }
-        try {
-            Write-Warning "Unable to find a version satisfying $version. Installing..."
-            $new_version = (Find-Module -Name $name -RequiredVersion $version_raw).Version
-            if ($new_version -eq $null) {
-                throw "Unable to find latest version of $name module"
-            }
-            sudo Install-Module -Name $name -RequiredVersion $new_version -Force
-        } catch {
-            Write-Host "Failed to install $name module: $_" -ForegroundColor Red
-            return  $null
-        }
+    if ($installed_versions -contains $version_raw) {
+        return $version_raw.ToString()
     }
-
-    throw "Unexpected Exception"
+    return Install-Resolved @{ RequiredVersion = $version_raw.ToString() }
 }
 
 
 function global:check-imported {
 <#
 .SYNOPSIS
-    Check if module is imported
+    Check if module is imported into the current session
 .PARAMETER name
     Name of the module
 .PARAMETER imported_list
-    List of modules imported
+    List of modules already known to be imported
 .EXAMPLE
     check-imported -name Terminal-Icons
 .EXAMPLE
-    check-imported -name Terminal-Icons -modules_imported $global:imported_list
+    check-imported -name Terminal-Icons -imported_list $global:imported_list
 #>
 
     [CmdletBinding()]
@@ -150,7 +113,7 @@ function global:check-imported {
     )
 
     if (-not $imported_list) {
-        $imported_list = (Get-Module -ListAvailable -Name $name).Name
+        $imported_list = (Get-Module -Name $name).Name
     }
 
     if ($imported_list -notcontains $name) {
@@ -164,31 +127,67 @@ function global:check-imported {
 }
 
 
+function global:get-module-import-args {
+<#
+.SYNOPSIS
+    Translate a version constraint ('latest', '==x.y.z', '>=x.y.z', ...) into the
+    matching Import-Module parameters.
+#>
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $version
+    )
+
+    if ($version -eq "latest") { return @{} }
+
+    $version_raw = ($version -replace '[=<>]', '')
+
+    if ($version.StartsWith('>')) { return @{ MinimumVersion = $version_raw } }
+    if ($version.StartsWith('<')) { return @{ MaximumVersion = $version_raw } }
+    return @{ RequiredVersion = $version_raw }
+}
+
+
 function global:init-modules {
 <#
 .SYNOPSIS
-    Import, Check, Init and Show Moudles
+    Import, Check, Init and Show Modules
 #>
 
-    $global:MODULES.GetEnumerator() | Where-Object { (-not $global:CHECK_MODULES) -or (check-module -Name $_.Key -Version $_.Value) } | ForEach-Object {
-        if ($_.Value -eq "latest") {
-            Import-Module -Name $_.Key
-        } else {
-            Import-Module -Name $_.Key -RequiredVersion $_.Value.Replace('=','').Replace('>','').Replace('<','')
+    # $MODULES is what EasyPwsh depends on; $MODULES_RECOMMAND is opt-in.
+    $modules_to_load = @{}
+    $global:MODULES.GetEnumerator() | ForEach-Object { $modules_to_load[$_.Key] = $_.Value }
+    if ($global:MODULE_RECOMMAND_FLAG -and $global:MODULES_RECOMMAND) {
+        $global:MODULES_RECOMMAND.GetEnumerator() | ForEach-Object { $modules_to_load[$_.Key] = $_.Value }
+    }
+
+    $modules_to_load.GetEnumerator() | ForEach-Object {
+        $module_name = $_.Key
+        $constraint  = $_.Value
+
+        $import_args = get-module-import-args -Version $constraint
+
+        if ($global:CHECK_MODULES) {
+            $resolved = check-module -Name $module_name -Version $constraint
+            if (-not $resolved) { return }   # `return` inside ForEach-Object == `continue`
+            $import_args = @{ RequiredVersion = $resolved }
         }
 
-        $init_module_file = Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "modules\module.$($_.Key).ps1"
-
-        if (-not (Test-Path $init_module_file)) {
-            New-Item -Path $init_module_file -ItemType "File" -Force
+        try {
+            Import-Module -Name $module_name @import_args -ErrorAction Stop
+        } catch {
+            Write-Warning "Failed to import module $module_name`: $($_.Exception.Message)"
+            return
         }
+
+        $init_module_file = Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "modules\module.$module_name.ps1"
         if (Test-Path $init_module_file) {
             & $init_module_file
         }
 
         if ($global:SHOW_MODULES) {
             Write-Host "module" -ForegroundColor Green -NoNewline
-            Write-Host " $($_.Key) " -ForegroundColor Yellow -NoNewline
+            Write-Host " $module_name " -ForegroundColor Yellow -NoNewline
             Write-Host "is imported" -ForegroundColor Green
         }
     }
@@ -201,10 +200,13 @@ function global:init-module { param (
     [Parameter(Mandatory = $false)]
     [string] $version = "latest"
 )
-    if ($version -eq "latest") {
-        Import-Module -Name $name -Force
-    } else {
-        Import-Module -Name $name -RequiredVersion $version -Force
+    $import_args = get-module-import-args -Version $version
+
+    try {
+        Import-Module -Name $name @import_args -Force -ErrorAction Stop
+    } catch {
+        Write-Warning "Failed to import module $name`: $($_.Exception.Message)"
+        return
     }
 
     $init_module_file = Join-Path -Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "modules\module.$($name).ps1"

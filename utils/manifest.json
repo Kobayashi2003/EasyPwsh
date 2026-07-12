@@ -942,6 +942,11 @@
       "author": "kobayashi",
       "description": "Compares the contents of two folders with color-coded differences"
     },
+    "compress-folders": {
+      "path": "kobayashi/compress-folders.ps1",
+      "author": "kobayashi",
+      "description": "Compresses each direct subfolder of a directory into its own archive"
+    },
     "connect-to-postgres": {
       "path": "kobayashi/connect-to-postgres.ps1",
       "author": "kobayashi",

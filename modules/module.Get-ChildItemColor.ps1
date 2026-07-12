@@ -41,7 +41,7 @@ If (-Not (Test-Path Variable:PSise)) {  # Only run this in the console and not i
 
     ForEach ($Extension in $GetChildItemColorExtensions['Image']) {
         if (-not $GetChildItemColorTable.File.ContainsKey($Extension)) {
-            $GetChildItemColorTable.File.Add($Extension, "DarkYello")
+            $GetChildItemColorTable.File.Add($Extension, "DarkYellow")
         }
     }
 }

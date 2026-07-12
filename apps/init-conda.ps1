@@ -16,9 +16,7 @@ if (-not (Get-Command 'conda' -ErrorAction SilentlyContinue)) {
 $conda_conf = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\conda\.condarc"
 $conda_conf_current_user = Join-Path $env:USERPROFILE -ChildPath ".condarc"
 
-if (!(Test-Path $conda_conf_current_user)) {
-    & sudo New-Item -Path $conda_conf_current_user -ItemType SymbolicLink -Value $conda_conf
-}
+New-ManagedSymlink -Path $conda_conf_current_user -Target $conda_conf
 
 # Lazy load: running `conda shell.powershell hook` spawns Python and costs ~1.1s
 # every shell. Instead, define a lightweight stub that, on first `conda` call,

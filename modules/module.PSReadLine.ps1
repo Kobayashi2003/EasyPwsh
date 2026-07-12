@@ -19,7 +19,6 @@ Set-PSReadLineOption -Colors @{
 #  Default            = 'DarkGray'
 }
 
-Set-PSReadLineOption -PromptText ' > ' # change the ' > ' character red
 Set-PSReadLineOption -PromptText ' > ', ' X ' # replace the ' > ' character with a red ' X '
 
 # set the file path to save the history
@@ -29,7 +28,6 @@ $history_save_path = (Split-Path $profile.CurrentUserAllHosts) + "\.ps_history"
 
 Set-PSReadLineOption -HistorySavePath $history_save_path
 Set-PSReadLineOption -HistorySaveStyle SaveIncrementally
-Set-PSReadLineOption -PredictionSource HistoryAndPlugin
 Set-PSReadLineOption -MaximumHistoryCount 100000
 
 # $history_save_path = (Get-PSReadLineOption).HistorySavePath
@@ -45,13 +43,15 @@ Set-PSReadLineOption -AddToHistoryHandler {
         [System.IO.File]::AppendAllText($global:__RECORD_FILE, $line.Replace("`r`n", "`n").Replace("`n", '`n') + [Environment]::NewLine, [System.Text.Encoding]::UTF8)
     }
 
-    $sensitive = "password|asplaintext|token|key|secret"
-    # return ($line -notmatch $sensitive)
+    # Opt-in (start\variables.ps1): keep secrets out of the on-disk history.
+    if ($global:HISTORY_FILTER_SENSITIVE) {
+        return ($line -notmatch $global:HISTORY_SENSITIVE_PATTERN)
+    }
     return $true
 }
 
 # prediction configuration
-Set-PSReadLineOption -PredictionSource History
+Set-PSReadLineOption -PredictionSource HistoryAndPlugin
 # Set-PSReadLineOption -PredictionViewStyle ListView
 Set-PSReadLineOption -PredictionViewStyle InlineView
 
@@ -133,7 +133,7 @@ Set-PSReadLineKeyHandler -Key F7 `
     $command = $history | Out-GridView -Title 'History' -PassThru
     if ($command) {
         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert("msbuild")
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert(($command -join "`n"))
     }
 }
 
@@ -481,7 +481,7 @@ Set-PSReadLineKeyHandler -Key "Alt+'" `
     foreach ($token in $tokens) {
         $extent = $token.Extent
 
-        if ($entent.StartOffset -le $cursor -and $extent.EndOffset -ge $cursor) {
+        if ($extent.StartOffset -le $cursor -and $extent.EndOffset -ge $cursor) {
 
             $tokenToChange = $token
 
@@ -505,7 +505,7 @@ Set-PSReadLineKeyHandler -Key "Alt+'" `
         if ($tokenText -eq "") {
             # Add single quotes
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert("''")
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($_cursor + 1)
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
             return
         }
 
@@ -551,7 +551,7 @@ Set-PSReadLineKeyHandler -Key 'Alt+"' `
     foreach ($token in $tokens) {
         $extent = $token.Extent
 
-        if ($entent.StartOffset -le $cursor -and $extent.EndOffset -ge $cursor) {
+        if ($extent.StartOffset -le $cursor -and $extent.EndOffset -ge $cursor) {
 
             $tokenToChange = $token
 
@@ -730,10 +730,12 @@ Set-PSReadLineOption -CommandValidationHandler {
             'cmt'   = 'commit'
             'undo'= '@whole:git reset --mixed HEAD~1'
             'master' = "@whole:git checkout master --"
-            'quickpush' = "@whole:git add . ; git commit -m $(Get-Date -Format 'yyMMdd') ; git push"
+            # Single-quoted: $(Get-Date) must be evaluated when the line is run,
+            # not when this profile is loaded.
+            'quickpush' = '@whole:git add . ; git commit -m $(Get-Date -Format ''yyMMdd'') ; git push'
             'prettylog'  = '@whole:git log --no-merges --color --stat --graph --date=format:"%Y-%m-%d %H:%M:%S" --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Cblue %s %Cgreen(%cd) %C(bold blue)<%an>%Creset" --abbrev-commit'
             'shallowclone'= '@whole:git clone --depth 1 --filter=blob:none --no-checkout'
-            'proxyon'  = '@whole:git config --global http.proxy http://127.0.0.1:7890 ; git config --global https.proxy http://127.0.0.1:7890'
+            'proxyon'  = "@whole:git config --global http.proxy http://$($global:PROXY_ADDRESS) ; git config --global https.proxy http://$($global:PROXY_ADDRESS)"
             'proxyoff' = '@whole:git config --global --unset http.proxy ; git config --global --unset https.proxy'
         }
         'conda' = @{
@@ -795,7 +797,7 @@ $scriptblock = {
         }
     }
 }
-Register-ArgumentCompleter -Native -CommandName git, npm, deno, conda, docker, pip, yarn, powershell, winget, choco -ScriptBlock $scriptblock
+Register-ArgumentCompleter -Native -CommandName git, npm, deno, conda, docker, pip, yarn, powershell, winget, choco, scoop -ScriptBlock $scriptblock
 
 $scriptblock = {
     param($wordToComplete, $commandAst, $cursorPosition)
@@ -1085,10 +1087,6 @@ Set-PSReadLineKeyHandler -Key Escape `
                          -LongDescription "Clear the current line" `
                          -ScriptBlock {
         param($key, $arg)
-        if ([Microsoft.PowerShell.PSConsoleReadLine]::EditMode -eq 'Vi') {
-            [Microsoft.PowerShell.PSConsoleReadLine]::ViCommandMode
-            return
-        }
         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
 }
 
@@ -1115,7 +1113,6 @@ function global:__Check-Path {
         }
         foreach ($p in $path) {
             if (-not (Test-Path -LiteralPath $p)) {
-                Write-Host ERROR2 $path -ForegroundColor Red
                 throw 'Path does not exist'
             }
         }
@@ -1295,7 +1292,9 @@ function global:__Paste-Files {
     }
     foreach ($path in $paths) {
 
-        if (Test-Path -Path (Join-Path $pwd (Split-Path $path -Leaf))) {
+        $destination = Join-Path $pwd (Split-Path $path -Leaf)
+
+        if (Test-Path -Path $destination) {
             Write-Host "`n⚠️ File already exists in $path" -nonewline
             continue
         }
@@ -1306,7 +1305,7 @@ function global:__Paste-Files {
             } elseif ($action -eq 'cut') {
                 Move-Item -Path $path -Destination $pwd
             } elseif ($action -eq 'link') {
-                New-Item -Path $pwd -ItemType SymbolicLink -Value $path
+                New-Item -Path $destination -ItemType SymbolicLink -Value $path | Out-Null
             }
         } catch {
             Write-Error $_

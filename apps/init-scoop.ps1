@@ -1,79 +1,95 @@
-﻿<#
+<#
 .SYNOPSIS
     Initialize Scoop, and install Scoop apps.
 .NOTES
-    https://github.com/lukesampson/scoop
+    https://github.com/ScoopInstaller/scoop
 #>
 
+# Scoop keeps user apps in <root>\apps, so a global dir nested in the root (or
+# vice versa) makes global and user installs fight over the same tree.
+function Test-PathNested([string] $Child, [string] $Parent) {
+    $c = [IO.Path]::GetFullPath($Child).TrimEnd('\') + '\'
+    $p = [IO.Path]::GetFullPath($Parent).TrimEnd('\') + '\'
+    return $c.StartsWith($p, [StringComparison]::OrdinalIgnoreCase) -or
+           $p.StartsWith($c, [StringComparison]::OrdinalIgnoreCase)
+}
+
 if (!(Get-Command "scoop" -ErrorAction SilentlyContinue)) {
+
+    # Scoop refuses to install from an elevated shell: shims and app permissions
+    # would end up owned by the admin account.
+    if (([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        Write-Warning "This shell is elevated. Scoop must be installed from a normal (non-admin) shell."
+        Write-Host "Open a regular PowerShell window and start a new session to install Scoop." -ForegroundColor Yellow
+        return
+    }
 
     Write-Host "For the best experience, it is recommended to install Scoop." -ForegroundColor Yellow
     Write-Host "You can continue the installation or install Scoop manually, and then run this script again." -ForegroundColor Yellow
     $confirm = Read-Host -Prompt "Do you want to install Scoop? (y/N)"
     if ($confirm -ne "y" -and $confirm -ne "Y") { return }
 
+    $scoop_dir = Read-Host -Prompt "Enter the directory where you want to install Scoop (default: $env:USERPROFILE\scoop)"
+    if (-not $scoop_dir) { $scoop_dir = "$env:USERPROFILE\scoop" }
 
-    $env:SCOOP = Read-Host -Prompt "Enter the directory where you want to install Scoop (e.g. $env:USERPROFILE\scoop)"
-    $env:SCOOP_GLOBAL = Read-Host -Prompt "Enter the directory where you want to install Scoop apps (e.g. $env:USERPROFILE\scoop\apps)"
-    if (-not $env:SCOOP) { $env:SCOOP = "$env:USERPROFILE\scoop" }
-    if (-not $env:SCOOP_GLOBAL) { $env:SCOOP_GLOBAL = "$env:USERPROFILE\scoop\apps" }
-    while ($env:SCOOP_GLOBAL -eq $env:SCOOP) {
-        Write-Host "The directory where you want to install Scoop apps cannot be the same as the directory where you want to install Scoop." -ForegroundColor Red
-        $env:SCOOP_GLOBAL = Read-Host -Prompt "Enter the directory where you want to install Scoop apps (e.g. $env:USERPROFILE\scoop\apps)"
+    $scoop_global_dir = Read-Host -Prompt "Enter the directory for globally installed apps (default: $env:ProgramData\scoop)"
+    if (-not $scoop_global_dir) { $scoop_global_dir = "$env:ProgramData\scoop" }
+
+    while (Test-PathNested $scoop_global_dir $scoop_dir) {
+        Write-Host "The global apps directory must not be inside the Scoop root (or contain it)." -ForegroundColor Red
+        Write-Host "Scoop already uses '$scoop_dir\apps' for user apps." -ForegroundColor Red
+        $scoop_global_dir = Read-Host -Prompt "Enter the directory for globally installed apps (default: $env:ProgramData\scoop)"
+        if (-not $scoop_global_dir) { $scoop_global_dir = "$env:ProgramData\scoop" }
     }
 
-    if (-not (Test-Path $env:SCOOP)) { New-Item -Path $env:SCOOP -ItemType Directory | Out-Null }
-    if (-not (Test-Path $env:SCOOP_GLOBAL)) { New-Item -Path $env:SCOOP_GLOBAL -ItemType Directory | Out-Null }
+    Write-Host "You can set a proxy for the installation." -ForegroundColor Yellow
+    Write-Host "If you don't want to use a proxy, just press Enter." -ForegroundColor Yellow
+    $install_proxy = Read-Host -Prompt "Enter proxy address (e.g. $global:PROXY_ADDRESS)"
 
-    $admin_flg = (([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+    $installer_dir = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "downloads\cache"
+    $installer     = Join-Path $installer_dir -ChildPath "install-scoop.ps1"
+    if (-not (Test-Path $installer_dir)) { New-Item -Path $installer_dir -ItemType Directory -Force | Out-Null }
 
-    if (-not (Test-Path "$PSScriptRoot\install-scoop.ps1")) {
-        Write-Host "Downloading install-scoop.ps1..." -ForegroundColor Yellow
-        $install_proxy = Read-Host -Prompt "Set the proxy (Press Enter if you don't want to set the proxy)"
-        try {
-            if ($install_proxy) {
-                & irm get.scoop.sh -outfile $PSScriptRoot\install-scoop.ps1 -Proxy $install_proxy
-            } else {
-                & irm get.scoop.sh -outfile $PSScriptRoot\install-scoop.ps1
-            }
-            Write-Host "Downloaded install-scoop.ps1." -ForegroundColor Green
-        } catch {
-            Write-Error "Error: $($_.Exception.Message)"
-            return
-        }
-    }
-
-    if (Test-Path $PSScriptRoot\install-scoop.ps1) {
-        Invoke-Expression "$PSScriptRoot\install-scoop.ps1 -ScoopDir $env:SCOOP -ScoopGlobalDir $env:SCOOP_GLOBAL $(if ($install_proxy) { '-Proxy $install_proxy' }) $(if ($admin_flg) { '-RunAsAdmin' })"
-    } else {
-        Write-Error "install-scoop.ps1 not found."
+    Write-Host "Downloading the Scoop installer from get.scoop.sh..." -ForegroundColor Yellow
+    try {
+        $irm_args = @{ Uri = 'https://get.scoop.sh'; OutFile = $installer }
+        if ($install_proxy) { $irm_args.Proxy = $install_proxy }
+        Invoke-RestMethod @irm_args
+        Write-Host "Downloaded the Scoop installer." -ForegroundColor Green
+    } catch {
+        Write-Error "Failed to download the Scoop installer: $($_.Exception.Message)"
         return
     }
+
+    $install_args = @{
+        ScoopDir       = $scoop_dir
+        ScoopGlobalDir = $scoop_global_dir
+    }
+    if ($install_proxy) { $install_args.Proxy = $install_proxy }
+
+    & $installer @install_args
 
     if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
         Write-Error "Scoop installation failed. Please try again."
         return
     }
 
+    $env:SCOOP = $scoop_dir
+    $env:SCOOP_GLOBAL = $scoop_global_dir
     try {
-        if ($admin_flg) {
-            [Environment]::SetEnvironmentVariable('SCOOP', $env:SCOOP, 'Machine')
-            [Environment]::SetEnvironmentVariable('SCOOP_GLOBAL', $env:SCOOP_GLOBAL, 'Machine')
-        } else {
-            [Environment]::SetEnvironmentVariable('SCOOP', $env:SCOOP, 'User')
-            [Environment]::SetEnvironmentVariable('SCOOP_GLOBAL', $env:SCOOP_GLOBAL, 'User')
-        }
+        # Scoop is a per-user install: a machine-wide SCOOP would point every
+        # account at this user's directory.
+        [Environment]::SetEnvironmentVariable('SCOOP', $scoop_dir, 'User')
+        [Environment]::SetEnvironmentVariable('SCOOP_GLOBAL', $scoop_global_dir, 'User')
     } catch {
         Write-Warning "Failed to set the SCOOP environment variable."
         Write-Host "Please add the SCOOP environment variable manually." -ForegroundColor Yellow
     }
     Write-Host "Scoop has been installed." -ForegroundColor Green
 
-    Write-Host "Before initializing Scoop, you can set the proxy." -ForegroundColor Yellow
-    Write-Host "If you don't want to set the proxy, just press Enter." -ForegroundColor Yellow
-    $scoop_proxy = Read-Host -Prompt "Enter proxy address (e.g. noproxy)"
-    if ($scoop_proxy) {
-        & scoop config proxy $scoop_proxy
+    if ($install_proxy) {
+        & scoop config proxy $install_proxy
     }
 
     if (-not (Get-Command 'git' -ErrorAction SilentlyContinue)) {
@@ -89,11 +105,21 @@ if (!(Get-Command "scoop" -ErrorAction SilentlyContinue)) {
         }
 
         $buckets_to_add = @()
-        $numbers = Read-Host -Prompt "Enter the numbers of buckets to add, separated by spaces"
-        $numbers.Split(" ") | ForEach-Object { $buckets_to_add += $scoop_supported_buckets[$_] }
+        $numbers = Read-Host -Prompt "Enter the numbers of buckets to add, separated by spaces (press Enter to skip)"
+        foreach ($number in ($numbers -split '\s+' | Where-Object { $_ })) {
+            $index = 0
+            if (-not [int]::TryParse($number, [ref] $index) -or
+                $index -lt 0 -or $index -ge $scoop_supported_buckets.Length) {
+                Write-Host "Ignoring invalid bucket number: $number" -ForegroundColor Red
+                continue
+            }
+            $buckets_to_add += $scoop_supported_buckets[$index]
+        }
+
+        $scoop_existing_buckets = @(& scoop bucket list).Name
         foreach ($bucket in $buckets_to_add) {
             try {
-                if (!(@(& scoop bucket list).Name -contains $bucket)) {
+                if ($scoop_existing_buckets -notcontains $bucket) {
                     & scoop bucket add $bucket
                 }
             } catch {
@@ -122,11 +148,61 @@ if (-not (Get-Command "scoop" -ErrorAction SilentlyContinue)) {
     return
 }
 
-$scoop_conf = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\scoop\config.json"
-$scoop_conf_current_user = Join-Path $env:USERPROFILE -ChildPath ".config\scoop\config.json"
+function global:scoop-list {
+<#
+.SYNOPSIS
+    List installed Scoop apps, annotated with the bucket, category and description
+    from the catalogs in start\variables.ps1.
+.DESCRIPTION
+    Anything installed but absent from both catalogs — including entries that are
+    commented out there — reports 'unknown' for the fields the catalog would have
+    supplied. The bucket falls back to the source Scoop itself reports, so it is
+    only 'unknown' when Scoop does not know it either.
+.PARAMETER Bucket
+    Only list apps from this bucket.
+.PARAMETER Category
+    Only list apps in this category. Use 'unknown' for the uncatalogued ones.
+.PARAMETER Tier
+    Only list apps of this tier: required, recommand, or unknown.
+.EXAMPLE
+    scoop-list
+    scoop-list -Category unknown
+    scoop-list -Bucket main -Tier required
+    scoop-list | Where-Object Category -eq 'Databases'
+#>
+    param (
+        [string] $Bucket,
+        [string] $Category,
+        [ValidateSet('required', 'recommand', 'unknown')]
+        [string] $Tier
+    )
 
-if (!(Test-Path $scoop_conf_current_user)) {
-    & sudo New-Item -Path $scoop_conf_current_user -ItemType SymbolicLink -Value $scoop_conf
+    # The tier is not stored on the entries: it is which catalog they live in.
+    $catalog = @{}
+    foreach ($entry in $global:SCOOP_CATALOG_RECOMMAND) { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'recommand' } }
+    foreach ($entry in $global:SCOOP_CATALOG)           { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'required' } }
+
+    ($installed = @(& scoop list)) *>$null
+
+    $result = foreach ($app in $installed) {
+        $known = $catalog[$app.Name]
+        $meta  = $known.Meta
+
+        [PSCustomObject]@{
+            Name        = $app.Name
+            Version     = $app.Version
+            Bucket      = @($meta.Bucket, $app.Source, 'unknown' | Where-Object { $_ })[0]
+            Category    = @($meta.Category, 'unknown' | Where-Object { $_ })[0]
+            Tier        = @($known.Tier, 'unknown' | Where-Object { $_ })[0]
+            Description = @($meta.Description, 'unknown' | Where-Object { $_ })[0]
+        }
+    }
+
+    if ($Bucket)   { $result = $result | Where-Object { $_.Bucket   -eq $Bucket } }
+    if ($Category) { $result = $result | Where-Object { $_.Category -eq $Category } }
+    if ($Tier)     { $result = $result | Where-Object { $_.Tier     -eq $Tier } }
+
+    $result | Sort-Object Bucket, Category, Name
 }
 
 function global:scoop-check-update {
@@ -160,7 +236,7 @@ function global:scoop-check-install {
 }
 
 function global:scoop-check-failed {
-    ($scoop_apps_failed = @(& scoop status | Where-Object {$_.INFO.ToString().contains('failed')}).Name) *>$null
+    ($scoop_apps_failed = @(& scoop status | Where-Object { $_.Info -match 'failed' }).Name) *>$null
 
     foreach ($app in $scoop_apps_failed) {
         try {
@@ -208,17 +284,17 @@ function global:scoop-check {
 
 function global:scoop-proxy-on {
     try {
-        & scoop config proxy '127.0.0.1:7890'
+        & scoop config proxy $global:PROXY_ADDRESS
     } catch {
         Write-Error "Failed to set Scoop proxy."
         return
     }
-    Write-Host "Scoop proxy has been turned on." -ForegroundColor Green
+    Write-Host "Scoop proxy has been turned on ($global:PROXY_ADDRESS)." -ForegroundColor Green
 }
 
 function global:scoop-proxy-off {
     try {
-        & scoop config proxy ''
+        & scoop config rm proxy
     } catch {
         Write-Error "Failed to unset Scoop proxy."
         return
