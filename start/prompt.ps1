@@ -21,6 +21,10 @@ $global:__PromptSpecialIcons = @{
     'C:\ProgramData'                = '▣'   # program data
 }
 
+# Resolved once: the prompt renders on every command, so it must not pay for a
+# Get-Command, and must not call git at all when git is not installed.
+$global:__PromptHasGit = [bool](Get-Command git -CommandType Application -ErrorAction SilentlyContinue)
+
 # Folder names (matched against the last path segment) -> icon.
 $global:__PromptNamedIcons = @{
     src          = '§';  source       = '§'
@@ -87,9 +91,12 @@ function global:prompt {
         if ($global:__PromptNamedIcons.ContainsKey($leaf)) {
             $path = $global:__PromptNamedIcons[$leaf]
         } else {
-            # git rev-parse returns a forward-slash path; normalize before comparing.
-            $gitRoot = git rev-parse --show-toplevel 2>$null
-            if ($LASTEXITCODE -eq 0 -and $gitRoot) { $gitRoot = $gitRoot -replace '/', '\' }
+            $gitRoot = $null
+            if ($global:__PromptHasGit) {
+                # git rev-parse returns a forward-slash path; normalize before comparing.
+                $gitRoot = git rev-parse --show-toplevel 2>$null
+                if ($LASTEXITCODE -eq 0 -and $gitRoot) { $gitRoot = $gitRoot -replace '/', '\' } else { $gitRoot = $null }
+            }
             if ($gitRoot -and $path.StartsWith($gitRoot)) {
                 $repoName = Split-Path $gitRoot -Leaf
                 $path = "⎇ $repoName" + $path.Substring($gitRoot.Length)

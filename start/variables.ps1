@@ -84,19 +84,18 @@ $global:APPS_ALIAS = $( if (-not $SET_APPS_ALIAS) { @{} } else { @{} })
 # Bucket / Category / Description are data, so scoop-list (apps\init-scoop.ps1)
 # can report them.
 
-# Required: EasyPwsh's own code depends on every entry here, and each Description
-# names what needs it. Always installed when SCOOP_CHECK_INSTALL is on.
+# Required: what Scoop itself needs in order to install and update anything else.
+# Always installed when SCOOP_CHECK_INSTALL is on.
+#
+# EasyPwsh itself requires nothing: every init-*.ps1 is guarded by Get-Command and
+# degrades to the built-in behaviour when its tool is missing (no bat -> `cat` stays
+# the built-in, no gsudo -> the PowerShell sudo in start\sudo.ps1, and so on). Tools
+# that only make the shell nicer belong in $SCOOP_CATALOG_OPTIONAL, not here.
 $global:SCOOP_CATALOG = @(
-    @{ Bucket = 'main'; Category = 'Version control';     Name = 'git';               Description = 'Repo name in the prompt (start\prompt.ps1) and the PSReadLine git keybindings' }
+    @{ Bucket = 'main'; Category = 'Version control';     Name = 'git';               Description = 'Scoop needs it to add and update buckets' }
 
-    # These ARE the EasyPwsh shell experience.
-    @{ Bucket = 'main'; Category = 'Shell utilities';     Name = 'bat';               Description = 'Backs the `cat` alias (apps\init-bat.ps1)' }
-    @{ Bucket = 'main'; Category = 'Shell utilities';     Name = 'ripgrep';           Description = 'Backs the `grep` alias (apps\init-ripgrep.ps1)' }
-    @{ Bucket = 'main'; Category = 'Shell utilities';     Name = 'zoxide';            Description = 'Backs the `cd` alias (apps\init-zoxide.ps1)' }
-    @{ Bucket = 'main'; Category = 'Shell utilities';     Name = 'gsudo';             Description = 'Backs `sudo` (start\sudo.ps1, start\symlink.ps1)' }
-
-    # Scoop's own essentials: it cannot unpack many manifests without them.
-    @{ Bucket = 'main'; Category = 'Archive & packaging'; Name = '7zip';              Description = 'Scoop essential; also backs 7z-extract/7z-create/7z-list (apps\init-7z.ps1)' }
+    # Scoop cannot unpack many manifests without these.
+    @{ Bucket = 'main'; Category = 'Archive & packaging'; Name = '7zip';              Description = 'Scoop essential — archive extraction' }
     @{ Bucket = 'main'; Category = 'Archive & packaging'; Name = 'innounp';           Description = 'Scoop essential — Inno Setup installer unpacker' }
     @{ Bucket = 'main'; Category = 'Archive & packaging'; Name = 'dark';              Description = 'Scoop essential — WiX/MSI decompiler' }
     @{ Bucket = 'main'; Category = 'Archive & packaging'; Name = '7zip19.00-helper';  Description = 'Scoop essential — 7-Zip 19.00 for old Inno Setup installers' }

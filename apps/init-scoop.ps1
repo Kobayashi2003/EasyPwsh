@@ -25,6 +25,10 @@ if (!(Get-Command "scoop" -ErrorAction SilentlyContinue)) {
         return
     }
 
+    # Every prompt below blocks forever in a non-interactive host (a script, CI, or
+    # `pwsh -c`), which would hang the shell start.
+    if (-not [Environment]::UserInteractive -or [Console]::IsInputRedirected) { return }
+
     Write-Host "For the best experience, it is recommended to install Scoop." -ForegroundColor Yellow
     Write-Host "You can continue the installation or install Scoop manually, and then run this script again." -ForegroundColor Yellow
     $confirm = Read-Host -Prompt "Do you want to install Scoop? (y/N)"

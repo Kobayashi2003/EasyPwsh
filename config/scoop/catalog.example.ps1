@@ -30,6 +30,12 @@ $global:SCOOP_CATALOG_OPTIONAL = @(
     @{ Bucket = 'main'; Category = 'Editors';              Name = 'neovim';           Description = 'Hyperextensible Vim-based text editor' }
 
     # --- main: shell utilities ---
+    # These shape the EasyPwsh shell but are not required: without them the aliases
+    # fall back to the built-ins.
+    @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'bat';              Description = 'Backs the `cat` alias (apps\init-bat.ps1)' }
+    @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'ripgrep';          Description = 'Backs the `grep` alias (apps\init-ripgrep.ps1)' }
+    @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'zoxide';           Description = 'Backs the `cd` alias (apps\init-zoxide.ps1)' }
+    @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'gsudo';            Description = 'Backs `sudo`; without it start\sudo.ps1 falls back to a PowerShell function' }
     @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'fzf';              Description = 'Command-line fuzzy finder — only used by the PSFzf module' }
     @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'fd';               Description = 'Fast alternative to find — only used by the PSFzf module' }
     @{ Bucket = 'main'; Category = 'Shell utilities';      Name = 'jq';               Description = 'Lightweight JSON processor' }
