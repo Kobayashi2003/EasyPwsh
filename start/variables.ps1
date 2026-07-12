@@ -50,7 +50,7 @@ $global:HISTORY_SENSITIVE_PATTERN = 'password|asplaintext|token|key|secret'
 
 # Which Scoop buckets scoop-check-install may install from. A bucket that is not
 # listed here (or not added to Scoop) is skipped, but its apps are still
-# catalogued, so scoop-list can name them.
+# catalogued, so scoop-info can describe them.
 $global:SCOOP_BUCKET_FLAGS = [ordered]@{
     'main'     = $true
     'extras'   = $false
@@ -81,7 +81,7 @@ $global:APPS_ALIAS = $( if (-not $SET_APPS_ALIAS) { @{} } else { @{} })
 
 # ─── Scoop applications ───────────────────────────────────────────────────────
 #
-# Bucket / Category / Description are data, so scoop-list (apps\init-scoop.ps1)
+# Bucket / Category / Description are data, so scoop-info (apps\init-scoop.ps1)
 # can report them.
 
 # Required: what Scoop itself needs in order to install and update anything else.

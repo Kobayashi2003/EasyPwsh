@@ -152,62 +152,194 @@ if (-not (Get-Command "scoop" -ErrorAction SilentlyContinue)) {
     return
 }
 
-function global:scoop-list {
+$global:SCOOP_CATALOG_FILE = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\scoop\catalog.ps1"
+
+function global:Find-ScoopCatalogEntry {
 <#
 .SYNOPSIS
-    List installed Scoop apps, annotated with the bucket, category and description
-    from $global:SCOOP_CATALOG (start\variables.ps1) and $global:SCOOP_CATALOG_OPTIONAL
-    (config\scoop\catalog.ps1).
-.DESCRIPTION
-    Anything installed but absent from both catalogs — including entries that are
-    commented out there — reports 'unknown' for the fields the catalog would have
-    supplied. The bucket falls back to the source Scoop itself reports, so it is
-    only 'unknown' when Scoop does not know it either.
-.PARAMETER Bucket
-    Only list apps from this bucket.
-.PARAMETER Category
-    Only list apps in this category. Use 'unknown' for the uncatalogued ones.
-.PARAMETER Tier
-    Only list apps of this tier: required, optional, or unknown.
-.EXAMPLE
-    scoop-list
-    scoop-list -Category unknown
-    scoop-list -Bucket main -Tier required
-    scoop-list | Where-Object Category -eq 'Databases'
+    The catalog entry for an app, plus which catalog it came from, or $null.
 #>
-    param (
-        [string] $Bucket,
-        [string] $Category,
-        [ValidateSet('required', 'optional', 'unknown')]
-        [string] $Tier
+    param([Parameter(Mandatory)] [string] $App)
+
+    foreach ($entry in $global:SCOOP_CATALOG) {
+        if ($entry.Name -eq $App) { return @{ Meta = $entry; Tier = 'required' } }
+    }
+    foreach ($entry in $global:SCOOP_CATALOG_OPTIONAL) {
+        if ($entry.Name -eq $App) { return @{ Meta = $entry; Tier = 'optional' } }
+    }
+    return $null
+}
+
+function global:scoop-info {
+<#
+.SYNOPSIS
+    `scoop info`, with this repo's catalog metadata appended.
+.DESCRIPTION
+    Runs `scoop info <app>` and adds Category, Tier and Note from the catalogs when
+    the app has an entry. An app with no entry is returned exactly as Scoop reported
+    it — no placeholder fields.
+.EXAMPLE
+    scoop-info bat
+    scoop-info ffmpeg
+#>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string] $App
     )
 
-    # The tier is not stored on the entries: it is which catalog they live in.
-    $catalog = @{}
-    foreach ($entry in $global:SCOOP_CATALOG_OPTIONAL) { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'optional' } }
-    foreach ($entry in $global:SCOOP_CATALOG)          { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'required' } }
+    $info = & scoop info $App
+    if (-not $info) { return }
 
-    ($installed = @(& scoop list)) *>$null
+    $known = Find-ScoopCatalogEntry -App $App
+    if (-not $known) { return $info }
 
-    $result = foreach ($app in $installed) {
-        $known = $catalog[$app.Name]
-        $meta  = $known.Meta
+    $info | Add-Member -NotePropertyName 'Category' -NotePropertyValue $known.Meta.Category -Force
+    $info | Add-Member -NotePropertyName 'Tier'     -NotePropertyValue $known.Tier          -Force
+    $info | Add-Member -NotePropertyName 'Note'     -NotePropertyValue $known.Meta.Description -Force
+    return $info
+}
 
-        [PSCustomObject]@{
-            Name        = $app.Name
-            Version     = $app.Version
-            Bucket      = @($meta.Bucket, $app.Source, 'unknown' | Where-Object { $_ })[0]
-            Category    = @($meta.Category, 'unknown' | Where-Object { $_ })[0]
-            Tier        = @($known.Tier, 'unknown' | Where-Object { $_ })[0]
-            Description = @($meta.Description, 'unknown' | Where-Object { $_ })[0]
-        }
+function global:scoop-install {
+<#
+.SYNOPSIS
+    `scoop install`, then record the app in config\scoop\catalog.ps1.
+.DESCRIPTION
+    Installing without cataloguing is how apps end up unattributed: scoop-info has
+    nothing to say about them. So after a successful install this offers to append an
+    entry, defaulting the description to the one from the app's manifest.
+
+    Apps already in a catalog are installed and left alone — $SCOOP_CATALOG is
+    EasyPwsh's own list and is not edited from here.
+.PARAMETER App
+    App to install. May be bucket-qualified or version-pinned, as Scoop allows.
+.PARAMETER Category
+    Category to file it under. Prompted for when omitted.
+.PARAMETER NoCatalog
+    Install without touching the catalog.
+.EXAMPLE
+    scoop-install ffmpeg
+    scoop-install ffmpeg -Category 'Media processing'
+#>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string] $App,
+        [string] $Category,
+        [switch] $NoCatalog
+    )
+
+    & scoop install $App
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "scoop install $App failed."
+        return
     }
 
-    if ($Bucket)   { $result = $result | Where-Object { $_.Bucket   -eq $Bucket } }
-    if ($Category) { $result = $result | Where-Object { $_.Category -eq $Category } }
-    if ($Tier)     { $result = $result | Where-Object { $_.Tier     -eq $Tier } }
+    if ($NoCatalog) { return }
 
-    $result | Sort-Object Bucket, Category, Name
+    # 'extras/ffmpeg@7.1' -> 'ffmpeg'
+    $name = (($App -split '/')[-1] -split '@')[0]
+
+    if (Find-ScoopCatalogEntry -App $name) {
+        Write-Host "$name is already in a catalog." -ForegroundColor DarkGray
+        return
+    }
+
+    if (-not (Test-Path $global:SCOOP_CATALOG_FILE)) {
+        Write-Warning "Catalog not found, so $name was not recorded: $global:SCOOP_CATALOG_FILE"
+        return
+    }
+
+    ($installed = @(& scoop list) | Where-Object { $_.Name -eq $name }) *>$null
+    $bucket = if ($installed.Source) { $installed.Source } else { 'main' }
+
+    $description = (& scoop info $name).Description
+    if (-not $Category) {
+        Write-Host "Recording $name in $($global:SCOOP_CATALOG_FILE)" -ForegroundColor Yellow
+        $Category = Read-Host -Prompt "Category (Enter for 'unknown')"
+    }
+    if (-not $Category) { $Category = 'unknown' }
+
+    $note = Read-Host -Prompt "Description (Enter for '$description')"
+    if (-not $note) { $note = $description }
+
+    # Single-quoted PowerShell strings escape a quote by doubling it.
+    $entry = "    @{{ Bucket = '{0}'; Category = '{1}'; Name = '{2}'; Description = '{3}' }}" -f `
+        $bucket, ($Category -replace "'", "''"), $name, ("$note" -replace "'", "''")
+
+    $lines = [System.Collections.Generic.List[string]](Get-Content -LiteralPath $global:SCOOP_CATALOG_FILE)
+
+    # Append just before the line that closes the array.
+    $close = -1
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+        if ($lines[$i].Trim() -eq ')') { $close = $i; break }
+    }
+    if ($close -lt 0) {
+        Write-Warning "Could not find the end of the catalog array; $name was not recorded."
+        return
+    }
+
+    $lines.Insert($close, $entry)
+    Set-Content -LiteralPath $global:SCOOP_CATALOG_FILE -Value $lines -Encoding UTF8
+
+    $global:SCOOP_CATALOG_OPTIONAL += @{ Bucket = $bucket; Category = $Category; Name = $name; Description = $note }
+    Write-Host "Recorded $name in the catalog." -ForegroundColor Green
+}
+
+function global:scoop-uninstall {
+<#
+.SYNOPSIS
+    `scoop uninstall`, then drop the app from config\scoop\catalog.ps1.
+.DESCRIPTION
+    Scoop keeps <scoop>\persist\<app> — your app configuration — unless -Purge is
+    given, so uninstalling and reinstalling does not lose settings.
+
+    An app in $SCOOP_CATALOG (what Scoop itself needs) is refused: removing 7zip or
+    git breaks Scoop's ability to install anything else.
+.PARAMETER App
+    App to uninstall.
+.PARAMETER Purge
+    Also delete persisted data. This is not reversible.
+.PARAMETER NoCatalog
+    Uninstall without touching the catalog.
+.EXAMPLE
+    scoop-uninstall ffmpeg
+    scoop-uninstall ffmpeg -Purge
+#>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string] $App,
+        [switch] $Purge,
+        [switch] $NoCatalog
+    )
+
+    $known = Find-ScoopCatalogEntry -App $App
+    if ($known -and $known.Tier -eq 'required') {
+        Write-Error "$App is required by Scoop itself ($($known.Meta.Description)). Refusing to uninstall."
+        return
+    }
+
+    if ($Purge) { & scoop uninstall $App --purge } else { & scoop uninstall $App }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "scoop uninstall $App failed."
+        return
+    }
+    if (-not $Purge) {
+        Write-Host "Persisted data kept. Use -Purge to delete it too." -ForegroundColor DarkGray
+    }
+
+    if ($NoCatalog -or -not $known) { return }
+    if (-not (Test-Path $global:SCOOP_CATALOG_FILE)) { return }
+
+    $lines = @(Get-Content -LiteralPath $global:SCOOP_CATALOG_FILE)
+    $kept = $lines | Where-Object { $_ -notmatch "^\s*@\{.*Name\s*=\s*'$([regex]::Escape($App))'" }
+
+    if ($kept.Count -eq $lines.Count) {
+        Write-Warning "$App was not found in $global:SCOOP_CATALOG_FILE; nothing removed."
+        return
+    }
+
+    Set-Content -LiteralPath $global:SCOOP_CATALOG_FILE -Value $kept -Encoding UTF8
+    $global:SCOOP_CATALOG_OPTIONAL = @($global:SCOOP_CATALOG_OPTIONAL | Where-Object { $_.Name -ne $App })
+    Write-Host "Removed $App from the catalog." -ForegroundColor Green
 }
 
 function global:scoop-check-update {

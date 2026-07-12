@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-25T21:18:52.5870766Z",
-  "count": 265,
+  "generatedAt": "2026-07-12T14:13:19.4630778Z",
+  "count": 271,
   "utils": {
     "add-firewall-rules": {
       "path": "fleschutz/add-firewall-rules.ps1",
@@ -1152,6 +1152,16 @@
       "author": "kobayashi",
       "description": "Text-to-speech utility using SAPI.SpVoice."
     },
+    "invoke-with-proxy": {
+      "path": "kobayashi/invoke-with-proxy.ps1",
+      "author": "kobayashi",
+      "description": "Runs a command with the proxy temporarily enabled, then restores the environment"
+    },
+    "invoke-without-proxy": {
+      "path": "kobayashi/invoke-without-proxy.ps1",
+      "author": "kobayashi",
+      "description": "Runs a command with the proxy temporarily disabled, then restores the environment"
+    },
     "list-items-size": {
       "path": "kobayashi/list-items-size.ps1",
       "author": "kobayashi",
@@ -1252,10 +1262,20 @@
       "author": "kobayashi",
       "description": "Set the color of the console window"
     },
+    "set-git-config": {
+      "path": "kobayashi/set-git-config.ps1",
+      "author": "kobayashi",
+      "description": "Configures the global Git identity, line-ending policy and SSH key"
+    },
     "set-mouse-position": {
       "path": "kobayashi/set-mouse-position.ps1",
       "author": "kobayashi",
       "description": "Sets the mouse cursor position"
+    },
+    "set-proxy": {
+      "path": "kobayashi/set-proxy.ps1",
+      "author": "kobayashi",
+      "description": "Sets the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)"
     },
     "set-time-to-utc": {
       "path": "kobayashi/set-time-to-utc.ps1",
@@ -1316,6 +1336,11 @@
       "path": "kobayashi/tree.ps1",
       "author": "kobayashi",
       "description": "Displays directory structure in a tree-like format"
+    },
+    "unset-proxy": {
+      "path": "kobayashi/unset-proxy.ps1",
+      "author": "kobayashi",
+      "description": "Removes the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)"
     },
     "update-m3u8-urls": {
       "path": "kobayashi/update-m3u8-urls.ps1",

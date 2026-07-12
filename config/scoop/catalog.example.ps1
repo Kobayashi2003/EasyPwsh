@@ -9,13 +9,13 @@
     Every entry is one hashtable with four fields:
 
         Bucket       the Scoop bucket it comes from ('scoop bucket list')
-        Category     free text, used to group the output of scoop-list
+        Category     free text, shown by scoop-info
         Name         the Scoop app name ('scoop install <Name>')
-        Description  free text, shown by scoop-list
+        Description  free text, shown by scoop-info as Note
 
     Uncommented entries are installed when SCOOP_OPTIONAL_FLAG is $true.
     Commented-out entries are never installed — and are invisible at runtime, so
-    scoop-list reports them as 'unknown' if you install them by hand.
+    scoop-info has nothing to add about them if you install them by hand.
 
     Apps that EasyPwsh itself depends on do NOT belong here: they live in
     $global:SCOOP_CATALOG in start\variables.ps1.
