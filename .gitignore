@@ -5,7 +5,3 @@ Temp/
 # Generated startup caches (compiled WinAPI DLL, tool init scripts, conda hook,
 # downloaded Scoop installer)
 downloads/cache/
-
-# Scoop rewrites config.json (last_update, and any proxy credentials) on every
-# command. It is runtime state, not a dotfile — keep it out of the repo.
-config/scoop/

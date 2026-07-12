@@ -152,7 +152,8 @@ function global:scoop-list {
 <#
 .SYNOPSIS
     List installed Scoop apps, annotated with the bucket, category and description
-    from the catalogs in start\variables.ps1.
+    from $global:SCOOP_CATALOG (start\variables.ps1) and $global:SCOOP_CATALOG_OPTIONAL
+    (config\scoop\catalog.ps1).
 .DESCRIPTION
     Anything installed but absent from both catalogs — including entries that are
     commented out there — reports 'unknown' for the fields the catalog would have
@@ -163,7 +164,7 @@ function global:scoop-list {
 .PARAMETER Category
     Only list apps in this category. Use 'unknown' for the uncatalogued ones.
 .PARAMETER Tier
-    Only list apps of this tier: required, recommand, or unknown.
+    Only list apps of this tier: required, optional, or unknown.
 .EXAMPLE
     scoop-list
     scoop-list -Category unknown
@@ -173,14 +174,14 @@ function global:scoop-list {
     param (
         [string] $Bucket,
         [string] $Category,
-        [ValidateSet('required', 'recommand', 'unknown')]
+        [ValidateSet('required', 'optional', 'unknown')]
         [string] $Tier
     )
 
     # The tier is not stored on the entries: it is which catalog they live in.
     $catalog = @{}
-    foreach ($entry in $global:SCOOP_CATALOG_RECOMMAND) { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'recommand' } }
-    foreach ($entry in $global:SCOOP_CATALOG)           { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'required' } }
+    foreach ($entry in $global:SCOOP_CATALOG_OPTIONAL) { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'optional' } }
+    foreach ($entry in $global:SCOOP_CATALOG)          { $catalog[$entry.Name] = @{ Meta = $entry; Tier = 'required' } }
 
     ($installed = @(& scoop list)) *>$null
 

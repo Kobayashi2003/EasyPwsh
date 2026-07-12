@@ -154,11 +154,11 @@ function global:init-modules {
     Import, Check, Init and Show Modules
 #>
 
-    # $MODULES is what EasyPwsh depends on; $MODULES_RECOMMAND is opt-in.
+    # $MODULES is what EasyPwsh depends on; $MODULES_OPTIONAL is opt-in.
     $modules_to_load = @{}
     $global:MODULES.GetEnumerator() | ForEach-Object { $modules_to_load[$_.Key] = $_.Value }
-    if ($global:MODULE_RECOMMAND_FLAG -and $global:MODULES_RECOMMAND) {
-        $global:MODULES_RECOMMAND.GetEnumerator() | ForEach-Object { $modules_to_load[$_.Key] = $_.Value }
+    if ($global:MODULE_OPTIONAL_FLAG -and $global:MODULES_OPTIONAL) {
+        $global:MODULES_OPTIONAL.GetEnumerator() | ForEach-Object { $modules_to_load[$_.Key] = $_.Value }
     }
 
     $modules_to_load.GetEnumerator() | ForEach-Object {
