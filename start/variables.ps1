@@ -27,10 +27,8 @@ $global:PROGRAMFILESX86= [Environment]::GetFolderPath("ProgramFilesX86")
 
 # ─── Feature flags ────────────────────────────────────────────────────────────
 
-# Startup profiler: when $true, core/init.ps1 prints a per-block/per-file timing
-# table at the end of loading. Default-only assignment so it can be pre-set before
-# dot-sourcing init.ps1 (e.g. `$global:PROFILE_STARTUP=$true; . core\init.ps1`)
-# without being clobbered here.
+# Print a per-block/per-file timing table after loading (core\init.ps1).
+# Default-only assignment: it may be pre-set before dot-sourcing init.ps1.
 if ($null -eq $global:PROFILE_STARTUP) { $global:PROFILE_STARTUP = $false }
 
 $global:SET_APPS_ALIAS  = $true
@@ -39,18 +37,16 @@ $global:IMPORT_MODULES  = $true
 $global:CHECK_MODULES   = $false
 $global:SHOW_MODULES    = $false
 
-# When $true, $MODULES_OPTIONAL is imported alongside the required $MODULES.
+# Import $MODULES_OPTIONAL alongside the required $MODULES.
 $global:MODULE_OPTIONAL_FLAG = $false
 
-# When $true, commands matching $HISTORY_SENSITIVE_PATTERN are kept out of the
-# PSReadLine history file (modules\module.PSReadLine.ps1). Off by default, which
-# is the existing behaviour: everything is recorded.
+# Keep commands matching $HISTORY_SENSITIVE_PATTERN out of the PSReadLine history
+# file (modules\module.PSReadLine.ps1). Off: everything is recorded.
 $global:HISTORY_FILTER_SENSITIVE = $false
 $global:HISTORY_SENSITIVE_PATTERN = 'password|asplaintext|token|key|secret'
 
-# Which Scoop buckets scoop-check-install may install from. A bucket that is not
-# listed here (or not added to Scoop) is skipped, but its apps are still
-# catalogued, so scoop-info can describe them.
+# Buckets scoop-check-install may install from. Apps from an unlisted (or not
+# added) bucket are skipped, but stay catalogued for scoop-info.
 $global:SCOOP_BUCKET_FLAGS = [ordered]@{
     'main'     = $true
     'extras'   = $false
@@ -58,18 +54,18 @@ $global:SCOOP_BUCKET_FLAGS = [ordered]@{
     'java'     = $false
 }
 
-# $SCOOP_CATALOG_OPTIONAL (config\scoop\catalog.ps1) holds the apps EasyPwsh
-# does not need. They are installed only when this is $true; $SCOOP_CATALOG, which
-# EasyPwsh depends on, is always installed.
-$global:SCOOP_OPTIONAL_FLAG = $false
 
-$global:SCOOP_CHECK_UPDATE = $false
-$global:SCOOP_CHECK_INSTALL = $false
-$global:SCOOP_CHECK_FAILED = $false
+$global:SCOOP_CHECK_UPDATE = $true
+$global:SCOOP_CHECK_FAILED = $true
 
-# When $true, apps\init-pixi.ps1 may download and run the official pixi installer
-# if pixi is missing. Off by default: a shell start should never execute a remote
-# script without being asked.
+$global:SCOOP_CHECK_INSTALL = $true
+# Also install $SCOOP_CATALOG_OPTIONAL (config\scoop\catalog.ps1); the required
+# $SCOOP_CATALOG is always installed.
+$global:SCOOP_OPTIONAL_FLAG = $true
+
+
+# Let apps\init-pixi.ps1 download and run the official pixi installer when pixi is
+# missing. Off: a shell start should not execute a remote script unasked.
 $global:PIXI_AUTO_INSTALL = $false
 
 # Local HTTP proxy used by scoop-proxy-on and the claude wrapper (apps\init-claude.ps1).
@@ -81,16 +77,11 @@ $global:APPS_ALIAS = $( if (-not $SET_APPS_ALIAS) { @{} } else { @{} })
 
 # ─── Scoop applications ───────────────────────────────────────────────────────
 #
-# Bucket / Category / Description are data, so scoop-info (apps\init-scoop.ps1)
-# can report them.
-
-# Required: what Scoop itself needs in order to install and update anything else.
-# Always installed when SCOOP_CHECK_INSTALL is on.
+# Bucket / Category / Description are data, reported by scoop-info (apps\init-scoop.ps1).
 #
-# EasyPwsh itself requires nothing: every init-*.ps1 is guarded by Get-Command and
-# degrades to the built-in behaviour when its tool is missing (no bat -> `cat` stays
-# the built-in, no gsudo -> the PowerShell sudo in start\sudo.ps1, and so on). Tools
-# that only make the shell nicer belong in $SCOOP_CATALOG_OPTIONAL, not here.
+# Required: what Scoop needs to install and update anything else. EasyPwsh itself
+# requires nothing — every init-*.ps1 is guarded by Get-Command and degrades to the
+# built-in behaviour. Merely nice-to-have tools belong in $SCOOP_CATALOG_OPTIONAL.
 $global:SCOOP_CATALOG = @(
     @{ Bucket = 'main'; Category = 'Version control';     Name = 'git';               Description = 'Scoop needs it to add and update buckets' }
 
@@ -103,8 +94,7 @@ $global:SCOOP_CATALOG = @(
     # Nothing outside the main bucket is required.
 )
 
-# Optional: everything else you have installed. Kept in its own, gitignored file
-# because it is a per-machine list, not part of what EasyPwsh needs.
+# Optional: the per-machine list, kept in a gitignored file.
 # See config\scoop\catalog.example.ps1 for the format and the full menu.
 $global:SCOOP_CATALOG_OPTIONAL = @()
 $scoop_catalog_file = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\scoop\catalog.ps1"
@@ -130,18 +120,16 @@ $global:SCOOP_UPDATE_IGNORE = @(
 # ─── PowerShell modules ───────────────────────────────────────────────────────
 #
 # Same split as the Scoop catalogs above:
-#
 #   MODULES           Required. EasyPwsh's own code depends on these.
-#   MODULES_OPTIONAL  Only imported when MODULE_OPTIONAL_FLAG is $true.
+#   MODULES_OPTIONAL  Imported only when MODULE_OPTIONAL_FLAG is $true.
 #
-# The value is a version constraint: 'latest', or one of ==x.y.z / >=x.y.z /
-# <=x.y.z / >x.y.z / <x.y.z. It is only *installed* when CHECK_MODULES is $true;
-# otherwise it just constrains the import.
+# The value is a version constraint: 'latest' or ==/>=/<=/>/< x.y.z. Modules are
+# installed only when CHECK_MODULES is $true; otherwise it just constrains the import.
 
 $global:MODULES = $( if (-not $IMPORT_MODULES) { @{} } else {
 @{
     # --- Shell editing ---
-    # The entire keybinding/prediction experience (modules\module.PSReadLine.ps1).
+    # Keybindings and prediction (modules\module.PSReadLine.ps1).
     # 2.3.4 is the last release supporting PowerShell < 7.2.
     "PSReadLine"         = $(if ($global:PSVERSION -ge "7.2.0") { "latest" } else { "==2.3.4" })
 }})
