@@ -55,13 +55,13 @@ $global:SCOOP_BUCKET_FLAGS = [ordered]@{
 }
 
 
-$global:SCOOP_CHECK_UPDATE = $true
-$global:SCOOP_CHECK_FAILED = $true
+$global:SCOOP_CHECK_UPDATE = $false
+$global:SCOOP_CHECK_FAILED = $false
 
-$global:SCOOP_CHECK_INSTALL = $true
+$global:SCOOP_CHECK_INSTALL = $false
 # Also install $SCOOP_CATALOG_OPTIONAL (config\scoop\catalog.ps1); the required
 # $SCOOP_CATALOG is always installed.
-$global:SCOOP_OPTIONAL_FLAG = $true
+$global:SCOOP_OPTIONAL_FLAG = $false
 
 
 # Let apps\init-pixi.ps1 download and run the official pixi installer when pixi is
