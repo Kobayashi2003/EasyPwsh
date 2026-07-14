@@ -1,4 +1,4 @@
-﻿using namespace System.Management.Automation
+using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 
 
@@ -222,180 +222,129 @@ Set-PSReadLineKeyHandler -Key Alt+F -Function SelectShellForwardWord
 
 #region Smart Insert/Delete
 
-# The next four key handlers are designed to make entering matched quotes
-# parens, and braces a nicer experience.  I'd like to include functions
-# in the module that do this, but this implementation still isn't as smart
-# as ReSharper, so I'm just providing it as a sample.
+# Auto-pairing for quotes and braces, close to what VSCode does:
+#   - a pair wraps the selection instead of replacing it
+#   - a pair is only auto-closed when the text on the right can take it
+#   - typing the closer that is already in front of the cursor just steps over it
+#   - Backspace between an empty pair deletes both halves
 
-<# TODO
-Set-PSReadLineKeyHandler -Key '"',"'" `
-                         -BriefDescription SmartInsertQuote `
-                         -LongDescription "Insert paired quotes if not already on a quote" `
-                         -ScriptBlock {
-    param($key, $arg)
+$global:__PAIR_CLOSE  = @{ '(' = ')'; '[' = ']'; '{' = '}' }
+$global:__PAIR_QUOTES = @('"', "'", '`')
+# Auto-close only in front of one of these, or at the end of the line.
+$global:__PAIR_STOPS  = @(' ', "`t", ')', ']', '}', '>', ',', ';', '|', '&')
 
-    $quote = $key.KeyChar
-
+function global:__Pair-WrapSelection { param([string]$Open, [string]$Close)
+<#
+.SYNOPSIS
+    Wrap the selection in $Open/$Close. Returns $false when nothing is selected.
+#>
     $selectionStart = $null
     $selectionLength = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetSelectionState([ref]$selectionStart, [ref]$selectionLength)
+
+    if ($selectionStart -lt 0 -or $selectionLength -le 0) {
+        return $false
+    }
 
     $line = $null
     $cursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
 
-    # If text is selected, just quote it without any smarts
-    if ($selectionStart -ne -1)
-    {
-        [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $quote + $line.SubString($selectionStart, $selectionLength) + $quote)
-        [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
-        return
-    }
-
-    $ast = $null
-    $tokens = $null
-    $parseErrors = $null
-    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$ast, [ref]$tokens, [ref]$parseErrors, [ref]$null)
-
-    function FindToken
-    {
-        param($tokens, $cursor)
-
-        foreach ($token in $tokens)
-        {
-            if ($cursor -lt $token.Extent.StartOffset) { continue }
-            if ($cursor -lt $token.Extent.EndOffset) {
-                $result = $token
-                $token = $token -as [StringExpandableToken]
-                if ($token) {
-                    $nested = FindToken $token.NestedTokens $cursor
-                    if ($nested) { $result = $nested }
-                }
-
-                return $result
-            }
-        }
-        return $null
-    }
-
-    $token = FindToken $tokens $cursor
-
-    # If we're on or inside a **quoted** string token (so not generic), we need to be smarter
-    if ($token -is [StringToken] -and $token.Kind -ne [TokenKind]::Generic) {
-        # If we're at the start of the string, assume we're inserting a new string
-        if ($token.Extent.StartOffset -eq $cursor) {
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$quote$quote")
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-            return
-        }
-
-        # If we're at the end of the string, move over the closing quote if present.
-        if ($token.Extent.EndOffset -eq ($cursor + 1) -and $line[$cursor] -eq $quote) {
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-            return
-        }
-    }
-
-    if ($null -eq $token -or
-        $token.Kind -eq [TokenKind]::RParen -or $token.Kind -eq [TokenKind]::RCurly -or $token.Kind -eq [TokenKind]::RBracket) {
-        if ($line[0..$cursor].Where{$_ -eq $quote}.Count % 2 -eq 1) {
-            # Odd number of quotes before the cursor, insert a single quote
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
-        }
-        else {
-            # Insert matching quotes, move cursor to be in between the quotes
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$quote$quote")
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-        }
-        return
-    }
-
-    # If cursor is at the start of a token, enclose it in quotes.
-    if ($token.Extent.StartOffset -eq $cursor) {
-        if ($token.Kind -eq [TokenKind]::Generic -or $token.Kind -eq [TokenKind]::Identifier -or
-            $token.Kind -eq [TokenKind]::Variable -or $token.TokenFlags.hasFlag([TokenFlags]::Keyword)) {
-            $end = $token.Extent.EndOffset
-            $len = $end - $cursor
-            [Microsoft.PowerShell.PSConsoleReadLine]::Replace($cursor, $len, $quote + $line.SubString($cursor, $len) + $quote)
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($end + 2)
-            return
-        }
-    }
-
-    # We failed to be smart, so just insert a single quote
-    [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
+    [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+        $selectionStart, $selectionLength,
+        $Open + $line.Substring($selectionStart, $selectionLength) + $Close)
+    [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
+    return $true
 }
-#>
 
-<# TODO
-Set-PSReadLineKeyHandler -Key '(','{','[' `
+Set-PSReadLineKeyHandler -Key '(', '[', '{' `
                          -BriefDescription InsertPairedBraces `
-                         -LongDescription "Insert matching braces" `
+                         -LongDescription "Wrap the selection, or insert a matching brace pair" `
                          -ScriptBlock {
     param($key, $arg)
 
-    $closeChar = switch ($key.KeyChar)
-    {
-        '(' { [char]')'; break }
-        '{' { [char]'}'; break }
-        '[' { [char]']'; break }
-    }
+    $open  = [string]$key.KeyChar
+    $close = $global:__PAIR_CLOSE[$open]
 
-    $selectionStart = $null
-    $selectionLength = $null
-    [Microsoft.PowerShell.PSConsoleReadLine]::GetSelectionState([ref]$selectionStart, [ref]$selectionLength)
+    if (& __Pair-WrapSelection -Open $open -Close $close) {
+        return
+    }
 
     $line = $null
     $cursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
 
-    if ($selectionStart -ne -1)
-    {
-      # Text is selected, wrap it in brackets
-      [Microsoft.PowerShell.PSConsoleReadLine]::Replace($selectionStart, $selectionLength, $key.KeyChar + $line.SubString($selectionStart, $selectionLength) + $closeChar)
-      [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($selectionStart + $selectionLength + 2)
-    } else {
-        # No text is selected, insert a pair, check if some text is behind the cursor, if so, insert a space
-        # if not, insert a pair of braces and move the cursor in between
-        if ($cursor -lt $line.Length -and $line[$cursor] -ne ' ') {
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)")
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-        }
-        else
-        {
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)$closeChar")
-            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
-        }
+    if ($cursor -lt $line.Length -and $line[$cursor] -notin $global:__PAIR_STOPS) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($open)
+        return
     }
+
+    [Microsoft.PowerShell.PSConsoleReadLine]::Insert($open + $close)
+    [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
 }
-#>
 
-<# TODO
-Set-PSReadLineKeyHandler -Key ')',']','}' `
-                         -BriefDescription SmartCloseBraces `
-                         -LongDescription "Insert closing brace or skip" `
+Set-PSReadLineKeyHandler -Key '"', "'", '`' `
+                         -BriefDescription SmartInsertQuote `
+                         -LongDescription "Wrap the selection, or insert a matching quote pair" `
                          -ScriptBlock {
     param($key, $arg)
+
+    $quote = [string]$key.KeyChar
+
+    if (& __Pair-WrapSelection -Open $quote -Close $quote) {
+        return
+    }
+
+    # The escape / line-continuation character: wrap a selection, but never pair it.
+    if ($quote -eq '`') {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
+        return
+    }
 
     $line = $null
     $cursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
 
-    if ($line[$cursor] -eq $key.KeyChar)
-    {
+    if ($cursor -lt $line.Length -and $line[$cursor] -eq $quote) {
         [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
+        return
     }
-    else
-    {
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert("$($key.KeyChar)")
+
+    $before = if ($cursor -gt 0) { [string]$line[$cursor - 1] } else { '' }
+    $after  = if ($cursor -lt $line.Length) { [string]$line[$cursor] } else { '' }
+    $isOpenString = ([regex]::Matches($line, [regex]::Escape($quote)).Count % 2) -eq 1
+
+    # An open string (`'a b|`), a quote glued to a word (`don'|`, `$env:|`), or text
+    # on the right that can't take a pair: insert one quote and leave it at that.
+    if ($isOpenString -or $before -match '[\w\$\.\-/\\:]' -or ($after -and $after -notin $global:__PAIR_STOPS)) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote)
+        return
+    }
+
+    [Microsoft.PowerShell.PSConsoleReadLine]::Insert($quote + $quote)
+    [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
+}
+
+Set-PSReadLineKeyHandler -Key ')', ']', '}' `
+                         -BriefDescription SmartCloseBraces `
+                         -LongDescription "Step over the closing brace when it is already there, otherwise insert it" `
+                         -ScriptBlock {
+    param($key, $arg)
+
+    $line = $null
+    $cursor = $null
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+
+    if ($cursor -lt $line.Length -and $line[$cursor] -eq $key.KeyChar) {
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor + 1)
+    } else {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert([string]$key.KeyChar)
     }
 }
-#>
 
-<#TODO
 Set-PSReadLineKeyHandler -Key Backspace `
                          -BriefDescription SmartBackspace `
-                         -LongDescription "Delete previous character or matching quotes/parens/braces" `
+                         -LongDescription "Delete both halves of an empty pair, otherwise the previous character" `
                          -ScriptBlock {
     param($key, $arg)
 
@@ -403,32 +352,20 @@ Set-PSReadLineKeyHandler -Key Backspace `
     $cursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
 
-    if ($cursor -gt 0)
-    {
-        $toMatch = $null
-        if ($cursor -lt $line.Length)
-        {
-            switch ($line[$cursor])
-            {
-                '"' { $toMatch = '"'; break }
-                "'" { $toMatch = "'"; break }
-                ')' { $toMatch = '('; break }
-                ']' { $toMatch = '['; break }
-                '}' { $toMatch = '{'; break }
-            }
-        }
+    if ($cursor -gt 0 -and $cursor -lt $line.Length) {
+        $open = [string]$line[$cursor - 1]
+        $close = if ($global:__PAIR_CLOSE.ContainsKey($open)) { $global:__PAIR_CLOSE[$open] }
+                 elseif ($open -in $global:__PAIR_QUOTES) { $open }
+                 else { $null }
 
-        if ($toMatch -ne $null -and $line[$cursor-1] -eq $toMatch)
-        {
+        if ($close -and $line[$cursor] -eq $close) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Delete($cursor - 1, 2)
-        }
-        else
-        {
-            [Microsoft.PowerShell.PSConsoleReadLine]::BackwardDeleteChar($key, $arg)
+            return
         }
     }
+
+    [Microsoft.PowerShell.PSConsoleReadLine]::BackwardDeleteChar($key, $arg)
 }
-#>
 
 #endregion Smart Insert/Delete
 
@@ -717,57 +654,164 @@ Set-PSReadLineKeyHandler -Key Alt+j `
     [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
 
-# Auto correct common typos
+# Expand the first argument on Enter: `git s` -> `git status`.
+# '@whole:' replaces `<command> <arg>` instead of just the argument.
+# Values are inserted as text, so single-quoted `$(...)` is evaluated at run time.
+$global:PSRL_CMD_MAP = @{
+    'git' = @{
+        # --- inspect ---
+        's'      = 'status --short --branch'
+        'd'      = 'diff'
+        'ds'     = 'diff --staged'
+        'l'      = 'log --oneline -20'
+        'lg'     = '@whole:git log --no-merges --color --stat --graph --date=format:"%Y-%m-%d %H:%M:%S" --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Cblue %s %Cgreen(%cd) %C(bold blue)<%an>%Creset" --abbrev-commit'
+        'last'   = 'show --stat HEAD'
+        'who'    = 'shortlog -sn --no-merges'
+        # --- stage & commit ---
+        'a'      = 'add .'
+        'aa'     = 'add --all'
+        'c'      = 'commit'
+        'cmt'    = 'commit'
+        'cm'     = 'commit -m'
+        'ca'     = 'commit --amend'
+        'amend'  = 'commit --amend --no-edit'
+        'unstage'= 'restore --staged'
+        'undo'   = '@whole:git reset --mixed HEAD~1'
+        'wip'    = '@whole:git add --all ; git commit -m "wip" --no-verify'
+        # --- branches ---
+        'b'      = 'branch'
+        'ba'     = 'branch --all'
+        'co'     = 'checkout'
+        'sw'     = 'switch'
+        'swc'    = 'switch --create'
+        'master' = '@whole:git checkout master --'
+        'main'   = '@whole:git checkout main --'
+        # --- remote ---
+        'p'      = 'push'
+        'pf'     = 'push --force-with-lease'
+        'pl'     = 'pull'
+        'plr'    = 'pull --rebase'
+        'f'      = 'fetch --all --prune'
+        'sync'   = '@whole:git fetch --all --prune ; git pull --rebase'
+        'cl'     = 'clone'
+        'shallowclone' = '@whole:git clone --depth 1 --filter=blob:none --no-checkout'
+        'quickpush' = '@whole:git add . ; git commit -m $(Get-Date -Format ''yyMMdd'') ; git push'
+        # --- stash / rebase ---
+        'st'     = 'stash push'
+        'stp'    = 'stash pop'
+        'stl'    = 'stash list'
+        'cont'   = 'rebase --continue'
+        'abort'  = 'rebase --abort'
+        # --- misc ---
+        'root'   = '@whole:Set-Location (git rev-parse --show-toplevel)'
+        'proxyon'  = "@whole:git config --global http.proxy http://$($global:PROXY_ADDRESS) ; git config --global https.proxy http://$($global:PROXY_ADDRESS)"
+        'proxyoff' = '@whole:git config --global --unset http.proxy ; git config --global --unset https.proxy'
+    }
+    'conda' = @{
+        'a'  = 'activate'
+        'd'  = 'deactivate'
+        'i'  = 'info'
+        'l'  = 'env list'
+        'ls' = 'list'
+        'c'  = 'create --name'
+        'rm' = 'remove --yes --all --name'
+        'ins'= 'install'
+        'up' = 'update'
+        'cl' = 'clean --all'
+    }
+    'pixi' = @{
+        'shell' = 'shell --change-ps1 false'
+        'a'  = 'add'
+        'r'  = 'run'
+        'i'  = 'install'
+        'ls' = 'list'
+        'up' = 'update'
+    }
+    'pip' = @{
+        'i'  = 'install'
+        'u'  = 'uninstall'
+        'ls' = 'list'
+        'up' = 'install --upgrade'
+        'o'  = 'list --outdated'
+        'mirror' = '@whole:pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple'
+    }
+    'npm' = @{
+        'i'  = 'install'
+        'rd' = 'run dev'
+        'rb' = 'run build'
+        'rt' = 'run test'
+        'ls' = 'list --depth=0'
+        'o'  = 'outdated'
+    }
+    'pnpm' = @{
+        'i'  = 'install'
+        'a'  = 'add'
+        'rd' = 'run dev'
+        'rb' = 'run build'
+        'rt' = 'run test'
+    }
+    'docker' = @{
+        'ps'   = 'ps --all'
+        'im'   = 'images'
+        'l'    = 'logs --follow'
+        'e'    = 'exec --interactive --tty'
+        'up'   = 'compose up --detach'
+        'down' = 'compose down'
+        'prune'= 'system prune --force'
+    }
+    'scoop' = @{
+        'i'  = 'install'
+        'rm' = 'uninstall'
+        's'  = 'search'
+        'ls' = 'list'
+        'up' = 'update *'
+        'st' = 'status'
+    }
+    'winget' = @{
+        'i'  = 'install'
+        'rm' = 'uninstall'
+        's'  = 'search'
+        'ls' = 'list'
+        'up' = 'upgrade --all'
+    }
+    'cd' = @{
+        '...'   = '../..'
+        '....'  = '../../..'
+        '.....' = '../../../..'
+        'desktop' = '$global:DESKTOP'
+        'docs'    = '$global:DOCUMENTS'
+        'dl'      = '$global:USERPROFILE\Downloads'
+        'tmp'     = '$global:TEMP'
+    }
+}
+
 Set-PSReadLineOption -CommandValidationHandler {
     param([CommandAst]$CommandAst)
 
-    $cmdMap = @{
-        'git' = @{
-            's'     = 'status'
-            'a'     = 'add .'
-            'p'     = 'push'
-            'cl'    = 'clone'
-            'cmt'   = 'commit'
-            'undo'= '@whole:git reset --mixed HEAD~1'
-            'master' = "@whole:git checkout master --"
-            # Single-quoted: $(Get-Date) must be evaluated when the line is run,
-            # not when this profile is loaded.
-            'quickpush' = '@whole:git add . ; git commit -m $(Get-Date -Format ''yyMMdd'') ; git push'
-            'prettylog'  = '@whole:git log --no-merges --color --stat --graph --date=format:"%Y-%m-%d %H:%M:%S" --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Cblue %s %Cgreen(%cd) %C(bold blue)<%an>%Creset" --abbrev-commit'
-            'shallowclone'= '@whole:git clone --depth 1 --filter=blob:none --no-checkout'
-            'proxyon'  = "@whole:git config --global http.proxy http://$($global:PROXY_ADDRESS) ; git config --global https.proxy http://$($global:PROXY_ADDRESS)"
-            'proxyoff' = '@whole:git config --global --unset http.proxy ; git config --global --unset https.proxy'
-        }
-        'conda' = @{
-            'a' = 'activate'
-            'd' = 'deactivate'
-            'i' = 'info'
-            'l' = 'env list'
-        }
-        'pixi' = @{
-            'shell' = 'shell --change-ps1 false'
-        }
-        'cd' = @{
-            '...'  = '../..'
-        }
-    }
+    if ($CommandAst.CommandElements.Count -lt 2) { return }
 
-    if ($cmdMap.ContainsKey($CommandAst.GetCommandName()) -And
-        $cmdMap[$CommandAst.GetCommandName()].ContainsKey($CommandAst.CommandElements[1].Extent.Text)) {
+    $cmdName = $CommandAst.GetCommandName()
+    if (-not $cmdName -or -not $global:PSRL_CMD_MAP.ContainsKey($cmdName)) { return }
 
-        $cmdBase = $CommandAst.CommandElements[0].Extent
-        $cmdArg  = $CommandAst.CommandElements[1].Extent
-        $newCont = $cmdMap[$CommandAst.GetCommandName()][$CommandAst.CommandElements[1].Extent.Text]
+    # Only expand a bare word: `git 's'` and `git $x` are left alone.
+    $argElement = $CommandAst.CommandElements[1]
+    if ($argElement -isnot [StringConstantExpressionAst] -or
+        $argElement.StringConstantType -ne [StringConstantType]::BareWord) { return }
 
-        if ($newCont -match '^@whole:') {
-            [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
-                $cmdBase.StartOffset, $cmdArg.EndOffset - $cmdBase.StartOffset,
-                $newCont.SubString($newCont.IndexOf(':') + 1))
-        } else {
-            [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
-                $cmdArg.StartOffset, $cmdArg.EndOffset - $cmdArg.StartOffset,
-                $newCont)
-        }
+    $newCont = $global:PSRL_CMD_MAP[$cmdName][$argElement.Value]
+    if (-not $newCont) { return }
+
+    $cmdBase = $CommandAst.CommandElements[0].Extent
+    $cmdArg  = $argElement.Extent
+
+    if ($newCont -match '^@whole:') {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+            $cmdBase.StartOffset, $cmdArg.EndOffset - $cmdBase.StartOffset,
+            $newCont.SubString($newCont.IndexOf(':') + 1))
+    } else {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Replace(
+            $cmdArg.StartOffset, $cmdArg.EndOffset - $cmdArg.StartOffset,
+            $newCont)
     }
 }
 # This checks the validation script when you hit enter
