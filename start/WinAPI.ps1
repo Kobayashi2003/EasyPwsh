@@ -1,13 +1,12 @@
 ﻿# Compile the P/Invoke helpers once to a cached DLL. Re-running the C# compiler
-# every shell costs ~450ms; loading a prebuilt DLL is ~10-50ms. The cache is
-# invalidated automatically when this source file is edited (mtime comparison).
-$__winapiDir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
-$__winapiDll   = Join-Path $__winapiDir 'WinAPI.dll'
-$__winapiFresh = (Test-Path $__winapiDll) -and
-    ((Get-Item $__winapiDll).LastWriteTimeUtc -ge (Get-Item $PSCommandPath).LastWriteTimeUtc)
+# every shell costs ~450ms; loading a prebuilt DLL is ~10-50ms. The DLL name
+# carries the source mtime: editing this file makes the next shell compile a
+# fresh build even while running shells keep the previous one loaded and locked.
+$__winapiDir = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
+$__winapiDll = Join-Path $__winapiDir ('WinAPI-{0:x}.dll' -f (Get-Item $PSCommandPath).LastWriteTimeUtc.Ticks)
 
 if (-not ('WinApi' -as [type])) {
-    if (-not $__winapiFresh) {
+    if (-not (Test-Path $__winapiDll)) {
         if (-not (Test-Path $__winapiDir)) { New-Item -ItemType Directory -Force -Path $__winapiDir | Out-Null }
         Add-Type -TypeDefinition @'
     using System;
@@ -52,6 +51,85 @@ if (-not ('WinApi' -as [type])) {
 
         [DllImport("user32.dll", CharSet=CharSet.Auto, ExactSpelling=true)]
         public static extern short GetAsyncKeyState(int vkey);
+
+        [DllImport("kernel32.dll", SetLastError=true)]
+        public static extern IntPtr GetStdHandle(int nStdHandle);
+
+        [DllImport("kernel32.dll", SetLastError=true)]
+        public static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+        [DllImport("kernel32.dll", SetLastError=true)]
+        public static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KEY_EVENT_RECORD {
+        public int bKeyDown;
+        public ushort wRepeatCount;
+        public ushort wVirtualKeyCode;
+        public ushort wVirtualScanCode;
+        public char UnicodeChar;
+        public uint dwControlKeyState;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct INPUT_RECORD {
+        [FieldOffset(0)] public ushort EventType;
+        [FieldOffset(4)] public KEY_EVENT_RECORD KeyEvent;
+    }
+
+    // Windows Terminal reports a click as a VT sequence, which reaches the app as
+    // ordinary characters. System.Console's input layer will not hand those over
+    // while it is waiting for a keystroke, so read the input queue directly.
+    public static class ConsoleInput {
+        const ushort KEY_EVENT = 1;
+
+        [DllImport("kernel32.dll", SetLastError=true)]
+        static extern bool GetNumberOfConsoleInputEvents(IntPtr hConsoleInput, out uint lpcNumberOfEvents);
+
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern bool ReadConsoleInput(IntPtr hConsoleInput, out INPUT_RECORD lpBuffer,
+                                            uint nLength, out uint lpNumberOfEventsRead);
+
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern bool PeekConsoleInput(IntPtr hConsoleInput, out INPUT_RECORD lpBuffer,
+                                            uint nLength, out uint lpNumberOfEventsRead);
+
+        // Next character, LEFT IN THE QUEUE. Returns -1 when nothing is waiting,
+        // and 0 for a key that carries no character (an arrow, a function key).
+        //
+        // Peek first, take second: a reader that consumes before it knows whose
+        // character it is eats the keystroke the user meant for the line editor.
+        // Records that are not key presses are dropped here, or they would sit at
+        // the head of the queue for ever.
+        public static int PeekChar(IntPtr handle) {
+            while (true) {
+                uint pending;
+                if (!GetNumberOfConsoleInputEvents(handle, out pending) || pending == 0) {
+                    return -1;
+                }
+
+                INPUT_RECORD record;
+                uint seen;
+                if (!PeekConsoleInput(handle, out record, 1, out seen) || seen == 0) {
+                    return -1;
+                }
+
+                if (record.EventType == KEY_EVENT && record.KeyEvent.bKeyDown != 0) {
+                    return record.KeyEvent.UnicodeChar;
+                }
+
+                uint read;
+                ReadConsoleInput(handle, out record, 1, out read);
+            }
+        }
+
+        // Take the character PeekChar just showed you.
+        public static void Consume(IntPtr handle) {
+            INPUT_RECORD record;
+            uint read;
+            ReadConsoleInput(handle, out record, 1, out read);
+        }
     }
 
     public static class KeyboardSimulator {
@@ -182,6 +260,10 @@ if (-not ('WinApi' -as [type])) {
         }
     }
 '@ -OutputAssembly $__winapiDll
+        # Drop superseded builds; ones still locked by older shells stay until later.
+        Get-ChildItem (Join-Path $__winapiDir 'WinAPI*.dll') |
+            Where-Object { $_.FullName -ne $__winapiDll } |
+            Remove-Item -Force -ErrorAction SilentlyContinue
     }
     Add-Type -Path $__winapiDll
 }

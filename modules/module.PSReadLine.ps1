@@ -1134,6 +1134,53 @@ Set-PSReadLineKeyHandler -Key Escape `
         [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
 }
 
+# Tap Alt+m to start, then click or drag in the input line to move the cursor to
+# the character you point at. The cursor follows while you do it; press any key
+# to stop (that key still reaches the line). A toggle, not a hold -- the capture
+# waits for Alt to be released before it begins, so holding it does no harm.
+# Clicks come from Read-MouseCell (start\mouse.ps1), which only turns mouse
+# reporting on for the duration of the capture.
+Set-PSReadLineKeyHandler -Key 'Alt+m' `
+                         -BriefDescription MouseSetCursor `
+                         -LongDescription "Click or drag to move the cursor, until you type" `
+                         -ScriptBlock {
+    $line = $null
+    $cursor = $null
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+
+    $rawUI = $Host.UI.RawUI
+    $width = [Console]::BufferWidth
+
+    # Viewport cell of $line[0], counted linearly across wrapped rows. Fixed up
+    # front: the clicks below move the cursor, but $line[0] stays put.
+    # LengthInBufferCells counts fullwidth (CJK) characters as 2 cells.
+    $origin = ([Console]::CursorTop - [Console]::WindowTop) * $width + [Console]::CursorLeft -
+              $rawUI.LengthInBufferCells($line.Substring(0, $cursor))
+
+    # A pipeline, never `foreach ($c in (Read-MouseCell))`: foreach collects every
+    # object before it iterates, so the cursor would only catch up at the end.
+    Read-MouseCell | ForEach-Object {
+        if ($_.Button -ne 0) { return }
+
+        $target = $_.Row * $width + $_.Column - $origin
+        if ($target -lt 0) { return }
+
+        $index = 0
+        $cells = 0
+        while ($index -lt $line.Length -and $cells -lt $target) {
+            $cells += $rawUI.LengthInBufferCells([string]$line[$index])
+            $index++
+        }
+
+        [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($index)
+
+        # PSReadLine only repaints once the handler returns, so paint the cursor
+        # where the click landed. CUP is 1-based and viewport-relative.
+        $cell = $origin + $cells
+        Write-ConsoleVT "$([char]27)[$([math]::Floor($cell / $width) + 1);$(($cell % $width) + 1)H"
+    }
+}
+
 
 function global:__Check-Path {
 <#
