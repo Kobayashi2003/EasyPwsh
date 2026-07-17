@@ -45,11 +45,21 @@ if ($global:CLAUDE_EXE_PATH) {
     # global: scope is required because init-*.ps1 apps are loaded via '&' (child scope);
     # a plain function would not survive back into the session.
     function global:claude {
-        $names = 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY'
+        # Route API traffic through the proxy, but keep localhost direct so Claude Code
+        # can reach local MCP servers (e.g. Pixso on 127.0.0.1:3667) — otherwise the
+        # proxy intercepts them and returns a bare 502.
+        $proxyUrl = "http://$($global:PROXY_ADDRESS)"
+        $overrides = [ordered]@{
+            HTTP_PROXY  = $proxyUrl
+            HTTPS_PROXY = $proxyUrl
+            ALL_PROXY   = $proxyUrl
+            NO_PROXY    = 'localhost,127.0.0.1,::1'
+        }
+        $names = @($overrides.Keys)
         $saved = @{}
         foreach ($n in $names) { $saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process') }
         try {
-            foreach ($n in $names) { Set-Item "Env:$n" "http://$($global:PROXY_ADDRESS)" }
+            foreach ($n in $names) { Set-Item "Env:$n" $overrides[$n] }
             & $global:CLAUDE_EXE_PATH @args
         } finally {
             foreach ($n in $names) {

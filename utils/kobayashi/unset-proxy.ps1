@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Removes the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)
+    Removes the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY)
 .DESCRIPTION
     This PowerShell script clears the proxy environment variables that were set by
     set-proxy.ps1. By default it removes the user variables. Use the -System switch
@@ -34,7 +34,7 @@ try {
         }
     }
 
-    foreach ($name in @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")) {
+    foreach ($name in @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY")) {
         # Remove from the persisted scope (setting to $null deletes the variable)...
         [Environment]::SetEnvironmentVariable($name, $null, $scope)
         # ...and remove from the current process.

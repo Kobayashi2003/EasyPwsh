@@ -3,10 +3,11 @@
     Runs a command with the proxy temporarily enabled, then restores the environment
 .DESCRIPTION
     This PowerShell script sets the proxy environment variables (HTTP_PROXY /
-    HTTPS_PROXY / ALL_PROXY) for the current process, runs the given command, and
-    then restores the previous proxy state. This lets a single command go through the
-    proxy without permanently changing the environment. Because the command runs in
-    the same process, child processes such as curl.exe inherit the temporary variables.
+    HTTPS_PROXY / ALL_PROXY) for the current process, along with NO_PROXY so that
+    localhost stays direct, runs the given command, and then restores the previous
+    proxy state. This lets a single command go through the proxy without permanently
+    changing the environment. Because the command runs in the same process, child
+    processes such as curl.exe inherit the temporary variables.
 
     The command can be given either as a bare command line (an executable followed by
     its arguments) or as a scriptblock in braces. The bare form is captured verbatim
@@ -30,7 +31,7 @@ param(
     [string]$Proxy
 )
 
-$names = @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")
+$names = @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY")
 
 # Remember the current process values so we can restore them afterwards.
 $saved = @{}
@@ -54,9 +55,11 @@ try {
         throw "Invalid proxy '$Proxy'. Use a port (e.g. 7890) or HOST:PORT (e.g. 127.0.0.1:7890)."
     }
 
-    foreach ($name in $names) { Set-Item -Path "Env:$name" -Value $proxyUrl }
+    foreach ($name in @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")) { Set-Item -Path "Env:$name" -Value $proxyUrl }
+    # Keep localhost direct so a wrapped tool can still reach local servers on 127.0.0.1.
+    Set-Item -Path "Env:NO_PROXY" -Value "localhost,127.0.0.1,::1"
 
-    Write-Host "⏳ Running command with proxy $proxyUrl ..." -ForegroundColor Yellow
+    Write-Host "⏳ Running command with proxy $proxyUrl (NO_PROXY=localhost,127.0.0.1,::1) ..." -ForegroundColor Yellow
 
     if ($args.Count -eq 1 -and $args[0] -is [scriptblock]) {
         & $args[0]

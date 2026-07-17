@@ -1275,7 +1275,7 @@
     "set-proxy": {
       "path": "kobayashi/set-proxy.ps1",
       "author": "kobayashi",
-      "description": "Sets the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)"
+      "description": "Sets the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY)"
     },
     "set-time-to-utc": {
       "path": "kobayashi/set-time-to-utc.ps1",
@@ -1340,7 +1340,7 @@
     "unset-proxy": {
       "path": "kobayashi/unset-proxy.ps1",
       "author": "kobayashi",
-      "description": "Removes the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)"
+      "description": "Removes the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY)"
     },
     "update-m3u8-urls": {
       "path": "kobayashi/update-m3u8-urls.ps1",

@@ -23,7 +23,7 @@
     Author: KOBAYASHI
 #>
 
-$names = @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY")
+$names = @("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY")
 
 # Remember the current process values so we can restore them afterwards.
 $saved = @{}
