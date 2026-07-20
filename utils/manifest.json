@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-07-12T14:13:19.4630778Z",
-  "count": 271,
+  "generatedAt": "2026-07-20T01:09:08.4520601Z",
+  "count": 272,
   "utils": {
     "add-firewall-rules": {
       "path": "fleschutz/add-firewall-rules.ps1",
@@ -1181,6 +1181,11 @@
       "path": "kobayashi/move-to-recycle.ps1",
       "author": "kobayashi",
       "description": "Moves files and directories to the recycle bin."
+    },
+    "move-user-folders": {
+      "path": "kobayashi/move-user-folders.ps1",
+      "author": "kobayashi",
+      "description": "Relocates the current user's Windows shell folders (Desktop, Documents, Searches, ...) to another root"
     },
     "open-cmd": {
       "path": "kobayashi/open-cmd.ps1",
