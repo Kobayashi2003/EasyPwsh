@@ -1,6 +1,5 @@
-.vscode/
 .claude/
-Temp/
+test/
 
 # Generated startup caches (compiled WinAPI DLL, tool init scripts, conda hook,
 # downloaded Scoop installer)
