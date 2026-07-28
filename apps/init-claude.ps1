@@ -22,8 +22,9 @@ if (Test-Path $claude_settings_file) {
 }
 
 $desired = [PSCustomObject]@{
-    type    = 'command'
-    command = $statusline_command
+    type            = 'command'
+    command         = $statusline_command
+    refreshInterval = 30
 }
 
 $current_json = if ($settings.PSObject.Properties['statusLine']) {
@@ -34,6 +35,32 @@ $desired_json = $desired | ConvertTo-Json -Compress
 if ($current_json -ne $desired_json) {
     $settings | Add-Member -NotePropertyName 'statusLine' -NotePropertyValue $desired -Force
     $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $claude_settings_file -Encoding UTF8
+}
+#endregion
+
+#region claude skills — symlink EasyPwsh-managed skills into Claude's skills directory
+# Skills installed from other people's repos are copied in directly under
+# ~/.claude/skills (not managed here); only skills we author ourselves live
+# under config\skills and get linked automatically here.
+$claude_skills_dir = Join-Path $env:USERPROFILE -ChildPath ".claude\skills"
+$claude_skills_src = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\skills"
+
+# Skills under config\skills that should NOT be linked into Claude's skills
+# directory (e.g. still WIP, or intentionally disabled). Any link previously
+# created for a now-excluded skill is removed on the next shell start.
+$claude_skills_excluded = @(
+    # "some-skill-name"
+)
+
+if (Test-Path -LiteralPath $claude_skills_src) {
+    Get-ChildItem -LiteralPath $claude_skills_src -Directory | ForEach-Object {
+        $link = Join-Path $claude_skills_dir -ChildPath $_.Name
+        if ($claude_skills_excluded -contains $_.Name) {
+            Remove-ManagedSymlink -Path $link -Target $_.FullName
+        } else {
+            New-ManagedSymlink -Path $link -Target $_.FullName
+        }
+    }
 }
 #endregion
 

@@ -67,3 +67,33 @@ function global:New-ManagedSymlink {
         Write-Warning "Failed to link $Path -> $Target."
     }
 }
+
+function global:Remove-ManagedSymlink {
+<#
+.SYNOPSIS
+    Remove $Path if, and only if, it is a symlink pointing at $Target.
+.DESCRIPTION
+    The inverse of New-ManagedSymlink, for skills/config that used to be linked
+    but shouldn't be anymore (e.g. an exclude list). Never touches $Path when
+    it's a real file/directory the user put there, or a symlink pointing
+    somewhere else — only links this repo created are ever removed.
+.PARAMETER Path
+    The link to remove (e.g. ~/.claude/skills/some-skill).
+.PARAMETER Target
+    The file/directory the link is expected to point at.
+#>
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [string] $Path,
+        [Parameter(Mandatory, Position = 1)]
+        [string] $Target
+    )
+
+    $existing = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $existing -or -not $existing.LinkTarget) { return }
+
+    $resolvedTarget = if (Test-Path -LiteralPath $Target) { (Resolve-Path -LiteralPath $Target).Path } else { $Target }
+    if ($existing.LinkTarget -ne $resolvedTarget) { return }
+
+    Remove-Item -LiteralPath $Path -Force
+}
