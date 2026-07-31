@@ -14,7 +14,7 @@ or above the primary one); every coordinate is checked against the real monitor 
 off-screen click fails loudly instead of silently doing nothing.
 
 ```powershell
-$cu = "D:/Program/Code/Skills/computer-use/scripts/computer.ps1"
+$cu = "D:/Program/Code/EasyPwsh/config/skills/computer-use/scripts/computer.ps1"
 & $cu -Action <action> [params]
 ```
 
