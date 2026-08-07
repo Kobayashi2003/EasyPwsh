@@ -141,19 +141,10 @@ Set-PSReadLineKeyHandler -Key F7 `
 # This will add the command to the history.
 # TODO: Unfortunately, revertline may not work as expected when you use listview completion.
 
-# Set-PSReadLineKeyHandler -Key Ctrl+b `
-#                          -LongDescription "Open Visual Studio Code" `
-#                          -ScriptBlock {
-#     [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-#     [Microsoft.PowerShell.PSConsoleReadLine]::Insert('code -r')
-#     [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-# }
-
 Set-PSReadLineKeyHandler -Key Ctrl+b `
                          -LongDescription "Cursor" `
                          -ScriptBlock {
     [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-    # [Microsoft.PowerShell.PSConsoleReadLine]::Insert('cursor -r')
     [Microsoft.PowerShell.PSConsoleReadLine]::Insert('code -r')
     [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
 }
