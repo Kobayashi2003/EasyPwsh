@@ -1,0 +1,7 @@
+# Machine-local notes: installed IMEs, key remappings, monitor layout, app behaviour, host names.
+# Individually dull, collectively a profile of someone's work machine — and this repo's origin is
+# public. Allowlist, not blocklist: everything is ignored unless named here, so a new note file is
+# private by default rather than private only if someone remembered to add a rule.
+*
+!.gitignore
+!README.md

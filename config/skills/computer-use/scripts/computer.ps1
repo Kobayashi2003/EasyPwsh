@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Self-contained Windows desktop automation: vision (screenshots), mouse, keyboard, windows,
     UI-Automation probing, and waits. One dispatcher, optionally batched.
@@ -28,8 +28,8 @@
     above the primary one). Every coordinate is validated against the real monitor layout, so an
     off-screen click fails loudly instead of silently doing nothing.
 
-    Mouse/window P/Invoke adapted from EasyPwsh start/WinAPI.ps1; screenshot (DWM frame bounds →
-    no shadow) from EasyPwsh utils/kobayashi/save-window-screenshot.ps1.
+    Self-contained: depends on nothing but Windows + PowerShell (5.1 or 7). Do not introduce a
+    dependency on any shell profile — this script must run identically outside its home repo.
 .PARAMETER Action
     screenshot | pixel | click | mouse-down | mouse-up | move | scroll | drag | type | keys |
     find-window | focus | window-move | maximize | minimize | restore | list-procs |
@@ -55,7 +55,8 @@ param(
     [Parameter(Mandatory)]
     [ValidateSet('screenshot','pixel','click','mouse-down','mouse-up','move','scroll','drag','type','keys',
                  'find-window','focus','window-move','maximize','minimize','restore','list-procs',
-                 'cursor-type','ui-find','ui-tree','wait-window','wait-stable','ime','edit','mouse-pos','screen-size','batch')]
+                 'cursor-type','ui-find','ui-tree','wait-window','wait-stable','ime','edit','mouse-pos','screen-size',
+                 'profile','batch')]
     [string]$Action,
 
     [int]$X = [int]::MinValue,      # absolute virtual-desktop px — negative is legal
@@ -107,15 +108,15 @@ $NOPOS = [int]::MinValue
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
 
 if (-not ('CU.Native' -as [type])) {
-    Add-Type -Namespace CU -Name Native -UsingNamespace System.Text, System.Collections.Generic -MemberDefinition @'
+    $CU_CS = @'
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
 [StructLayout(LayoutKind.Sequential)] public struct CURSORINFO { public int cbSize; public int flags; public IntPtr hCursor; public POINT ptScreenPos; }
 
-// SendInput plumbing. keybd_event/mouse_event are legacy shims that inject events with scan
-// code 0; an IME or any low-level keyboard hook (Microsoft Pinyin installs one) can drop those,
-// which shows up as "the Ctrl modifier is ignored and ctrl+a types a literal 'a'". SendInput
-// with a real MapVirtualKey scan code is what actually reaches the target reliably.
+// SendInput plumbing. Scan codes are filled in from MapVirtualKey because some apps read the
+// scan code rather than the virtual key; keybd_event injects scan code 0, so this path is used
+// instead. NOTE: that is NOT why a modifier ever went missing — see SendCombo below for the
+// real cause. This comment used to claim it was, and that claim kept the actual bug alive.
 [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public ushort wVk, wScan; public uint dwFlags, time; public IntPtr dwExtraInfo; }
 [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx, dy; public uint mouseData, dwFlags, time; public IntPtr dwExtraInfo; }
 [StructLayout(LayoutKind.Explicit)] public struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT mi; [FieldOffset(0)] public KEYBDINPUT ki; }
@@ -139,13 +140,51 @@ public static bool IsExtended(ushort vk) {
         default: return false;
     }
 }
+private static INPUT Ki(ushort vk, bool up) {
+    var i = new INPUT();
+    i.type = INPUT_KEYBOARD;
+    i.u.ki.wVk = vk;
+    i.u.ki.wScan = (ushort)MapVirtualKey(vk, 0);                  // MAPVK_VK_TO_VSC
+    i.u.ki.dwFlags = (up ? 0x0002u : 0u) | (IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0u);
+    return i;
+}
 public static uint SendKey(ushort vk, bool up) {
-    var inp = new INPUT[1];
-    inp[0].type = INPUT_KEYBOARD;
-    inp[0].u.ki.wVk = vk;
-    inp[0].u.ki.wScan = (ushort)MapVirtualKey(vk, 0);            // MAPVK_VK_TO_VSC
-    inp[0].u.ki.dwFlags = (up ? 0x0002u : 0u) | (IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0u);
-    return SendInput(1, inp, Marshal.SizeOf(typeof(INPUT)));
+    return SendInput(1, new INPUT[] { Ki(vk, up) }, Marshal.SizeOf(typeof(INPUT)));
+}
+
+// ── A key combo is delivered in ONE SendInput call ───────────────────────────────────────────
+// Windows only guarantees that the events of a single SendInput call are not interleaved with
+// other input, so a combo belongs in one call. That is the reason — and it is a design rule, not
+// a fix for any observed bug.
+// HISTORICAL NOTE, worth keeping: "ctrl+a types a literal a" was NOT caused by splitting the
+// call, and not by scan codes, and not by the IME. It was $mods (a local in Send-Combo)
+// case-colliding with $MODS (the modifier name list), which made every modifier unrecognised so
+// a bare letter went out. Three plausible mechanisms were each written down as fact before
+// anyone measured the parsing. If a modifier ever goes missing again, print the parsed VK codes
+// before theorising about the input stack.
+public static uint SendCombo(ushort[] mods, ushort key) {
+    var a = new INPUT[mods.Length * 2 + (key == 0 ? 0 : 2)];
+    int i = 0;
+    foreach (var m in mods) a[i++] = Ki(m, false);
+    if (key != 0) { a[i++] = Ki(key, false); a[i++] = Ki(key, true); }
+    for (int j = mods.Length - 1; j >= 0; j--) a[i++] = Ki(mods[j], true);
+    return SendInput((uint)a.Length, a, Marshal.SizeOf(typeof(INPUT)));
+}
+// To hold a combo down (games, some Electron apps) it has to be split, but the step that matters
+// — modifiers down THEN main key down — still travels in one call.
+public static uint SendComboDown(ushort[] mods, ushort key) {
+    var a = new INPUT[mods.Length + (key == 0 ? 0 : 1)];
+    int i = 0;
+    foreach (var m in mods) a[i++] = Ki(m, false);
+    if (key != 0) a[i++] = Ki(key, false);
+    return SendInput((uint)a.Length, a, Marshal.SizeOf(typeof(INPUT)));
+}
+public static uint SendComboUp(ushort[] mods, ushort key) {
+    var a = new INPUT[mods.Length + (key == 0 ? 0 : 1)];
+    int i = 0;
+    if (key != 0) a[i++] = Ki(key, true);
+    for (int j = mods.Length - 1; j >= 0; j--) a[i++] = Ki(mods[j], true);
+    return SendInput((uint)a.Length, a, Marshal.SizeOf(typeof(INPUT)));
 }
 public static uint SendMouse(uint flags, int data) {
     var inp = new INPUT[1];
@@ -245,6 +284,11 @@ public const uint MOUSEEVENTF_WHEEL = 0x0800;
 public const uint MOUSEEVENTF_HWHEEL = 0x1000;
 public const uint KEYEVENTF_KEYUP = 0x0002;
 
+// The raw window rect — the coordinate space SetWindowPos consumes. On Win10/11 it is bigger
+// than GetBounds by the invisible resize border (~7px left/right/bottom, 0 top). Anything that
+// POSITIONS a window needs this; anything that READS one wants GetBounds.
+public static RECT GetWinRect(IntPtr hWnd) { RECT r; GetWindowRect(hWnd, out r); return r; }
+
 // DWM extended frame bounds (attr 9) so screenshots exclude the drop shadow.
 public static RECT GetBounds(IntPtr hWnd) {
     RECT r;
@@ -269,6 +313,44 @@ public static IntPtr[] TopWindows() {
     return list.ToArray();
 }
 '@
+
+    # Compiling that block costs ~0.5s of EVERY invocation, so cache it as a DLL. The filename
+    # carries this script's mtime and the host's major version, which does all the invalidation
+    # work for free: editing the script changes the key, so a stale DLL can never be loaded, and
+    # a .NET Framework (5.1) assembly never collides with a .NET Core (7+) one. Processes already
+    # running keep their own file open without conflict. No hashing, no lockfile.
+    # The cache lives under LOCALAPPDATA, NOT next to the script: this skill is synced across
+    # machines as dotfiles and must not write build output into its own repo.
+    $cuDir = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'computer-use-skill'
+    $cuKey = 'CU-{0:x}-' -f (Get-Item $PSCommandPath).LastWriteTimeUtc.Ticks
+    $cuDll = Join-Path $cuDir ("$cuKey" + "ps$($PSVersionTable.PSVersion.Major).dll")
+    if (Test-Path $cuDll) { try { Add-Type -Path $cuDll -ErrorAction Stop } catch { } }
+
+    if (-not ('CU.Native' -as [type])) {
+        $tmp = "$cuDll.$PID.tmp"
+        try {
+            if (-not (Test-Path $cuDir)) { New-Item -ItemType Directory -Force -Path $cuDir | Out-Null }
+            # -OutputAssembly writes without loading, so the DLL we then load is the SAME artifact
+            # a later run will load — the cached path is never a different code path.
+            Add-Type -Namespace CU -Name Native -UsingNamespace System.Text, System.Collections.Generic `
+                     -MemberDefinition $CU_CS -OutputAssembly $tmp -ErrorAction Stop
+            Move-Item -LiteralPath $tmp -Destination $cuDll -Force -ErrorAction Stop
+            Add-Type -Path $cuDll -ErrorAction Stop
+            # Drop builds of OLDER script versions only. Matching on the mtime key, not on the
+            # filename, is what keeps the 5.1 and the 7.x build of the current version alive —
+            # comparing against $cuDll made each host delete the other's cache every run.
+            # A file another process has loaded stays locked; skip it.
+            Get-ChildItem -LiteralPath $cuDir -Filter 'CU-*.dll' -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -notlike "$cuKey*" } |
+                ForEach-Object { try { Remove-Item $_.FullName -Force -ErrorAction Stop } catch { } }
+        } catch {
+            # Caching is an optimisation, never a requirement — a read-only or contended cache
+            # must not break the run.
+            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+            Add-Type -Namespace CU -Name Native -UsingNamespace System.Text, System.Collections.Generic `
+                     -MemberDefinition $CU_CS
+        }
+    }
 }
 
 # Make the process DPI-aware so window rects, UI-Automation rects, screenshots (physical px) and
@@ -348,7 +430,13 @@ $VK = @{
     'numpad5'=0x65;'numpad6'=0x66;'numpad7'=0x67;'numpad8'=0x68;'numpad9'=0x69;
     'multiply'=0x6A; 'add'=0x6B; 'subtract'=0x6D; 'decimal'=0x6E; 'divide'=0x6F;
 }
-$MODS = @('ctrl','control','shift','alt','win','cmd')
+# NOT $MODS: PowerShell variable names are case-INSENSITIVE, so a local named $mods — which is the
+# obvious name for a list of modifiers being accumulated — silently overwrites this one. That is
+# exactly what happened in Send-Combo, and it meant `keys "ctrl+a"` never once sent Ctrl: every
+# token failed the membership test, so the last one won and a BARE 'a' went out. In Chinese IME
+# mode that bare letter opens a composition, which made the whole thing look like an IME problem
+# and sent every previous investigation down that hole. Keep this name distinctive.
+$MODIFIER_NAMES = @('ctrl','control','shift','alt','win','cmd')
 function Resolve-Vk([string]$name) {
     $n = $name.Trim(); $l = $n.ToLower()
     if ($VK.ContainsKey($l)) { return $VK[$l] }
@@ -393,35 +481,59 @@ function Get-ImeState([IntPtr]$hwnd) {
         return @{ Lang = $lang; Ime = $true; Conv = $conv; Native = (($conv -band 1) -ne 0); Open = ($open -ne 0) }
     } catch { return $null }
 }
-# Only alphanumeric keys are at risk — they are what an IME composes. enter/f5/arrows pass
-# straight through, so stay quiet for those (no warning spam on a CJK desktop).
+# Now that combos are delivered atomically, modified keys (ctrl+a, ctrl+shift+p) are immune and
+# warning about them is noise — and noise is how a real warning gets ignored. The one remaining
+# hazard is a BARE letter/digit: in native mode the IME legitimately takes it to compose with,
+# the candidate box opens, and every later key is eaten. enter/f5/arrows never interest an IME.
 function Get-ImeWarning([string]$combos) {
-    if ($combos -notmatch '(^|[+\s])[a-zA-Z0-9]($|\s|$)') { return '' }
+    $bare = @(($combos -split '\s+') | Where-Object { $_ -match '^[a-zA-Z0-9]$' })
+    if ($bare.Count -eq 0) { return '' }
     $st = Get-ImeState ([CU.Native]::GetForegroundWindow())
     if (-not $st -or -not $st.Native) { return '' }
-    return "WARNING: the focused window's IME is in native/CJK mode (conv=0x{0:X}). Alphanumeric keys — the letter in ctrl+a, the ctrl+v behind -Action type — are swallowed while a composition/candidate box is open, and one stolen keystroke opens it, so failures cascade. Fix first: -Action ime -Mode english (Microsoft IME; also closes the candidate box), then -Mode 0x{0:X} to restore." -f $st.Conv
+    # Note the doubled backtick: in a double-quoted PowerShell string a single ` is the escape
+    # character, so "`edit" silently became "<ESC>dit" in the message users actually saw.
+    return ("WARNING: sending bare key(s) [{0}] into a native/CJK IME (conv=0x{1:X}). A bare letter " +
+            "CAN be taken as composition input instead of reaching the app, and once the candidate " +
+            "box is open every later key is eaten too — ``edit -Mode read`` cannot see this, so the " +
+            "failure is silent. If the key seems to do nothing: -Action ime -Mode english, then " +
+            "-Mode 0x{1:X} to restore. (A page-level key handler, e.g. a vim browser extension, can " +
+            "also swallow it first — that is not an IME problem.)") -f ($bare -join ' '), $st.Conv
 }
 
 # Press one combo like 'ctrl+shift+p', 'enter', 'ctrl+`' or 'ctrl++'.
 # A literal '+' key splits into an empty trailing token — that case is mapped to shift+'='.
-function Send-Combo([string]$combo) {
+function Send-Combo([string]$combo, [int]$holdMs = 0) {
     $mods = @(); $main = $null
     $parts = @($combo -split '\+')
     for ($i = 0; $i -lt $parts.Count; $i++) {
         $t = $parts[$i]
         if ($t -eq '') { if ($i -gt 0 -and $i -eq $parts.Count - 1) { $main = '+' } ; continue }
-        if ($t.Trim().ToLower() -in $MODS) { $mods += $t.Trim().ToLower() } else { $main = $t }
+        if ($t.Trim().ToLower() -in $MODIFIER_NAMES) { $mods += $t.Trim().ToLower() } else { $main = $t }
     }
     if ($main -eq '+') { $main = '='; if ('shift' -notin $mods) { $mods += 'shift' } }
     if (-not $main -and $mods.Count -eq 0) { throw "Empty key combo" }
-    $modVks = @($mods | ForEach-Object { Resolve-Vk $_ })
-    foreach ($m in $modVks) { Key-Down $m }
-    if ($main) {
-        $mv = Resolve-Vk $main
-        Key-Down $mv; Start-Sleep -Milliseconds 30; Key-Up $mv
+
+    $modVks = [uint16[]]@($mods | ForEach-Object { Resolve-Vk $_ })
+    $mainVk = if ($main) { [uint16](Resolve-Vk $main) } else { [uint16]0 }
+
+    # One combo, one SendInput call — see the SendCombo comment. Only -HoldMs splits it, and even
+    # then the modifiers-down-then-key-down step stays atomic.
+    if ($holdMs -gt 0) {
+        $sent = [CU.Native]::SendComboDown($modVks, $mainVk)
+        Start-Sleep -Milliseconds $holdMs
+        $sent += [CU.Native]::SendComboUp($modVks, $mainVk)
+    } else {
+        $sent = [CU.Native]::SendCombo($modVks, $mainVk)
     }
-    [array]::Reverse($modVks)
-    foreach ($m in $modVks) { Key-Up $m }
+
+    # SendInput returns a short count when UIPI blocks the injection (target runs elevated, this
+    # process does not). It never raises — so without this check the keystroke vanishes silently.
+    $want = $modVks.Count * 2 + $(if ($mainVk) { 2 } else { 0 })
+    if ($sent -lt $want) {
+        throw ("SendInput delivered only $sent of $want events for '$combo'. Usually the target " +
+               "window runs elevated and this process does not (UIPI blocks the injection) — " +
+               "re-run elevated, or act on a non-elevated window.")
+    }
 }
 # Hold a modifier set around a mouse action (ctrl+click, shift+drag, ctrl+scroll = zoom).
 function Push-Modifiers([string]$mods) {
@@ -446,7 +558,7 @@ function Pop-Modifiers($vks) {
 # This does NOT work for Chromium/Electron/WPF/Qt, which paint their own text and expose one
 # HWND for the whole window — hence Test-EditControl, and the ctrl+v fallback.
 $WM = @{ CUT=0x0300; COPY=0x0301; PASTE=0x0302; CLEAR=0x0303; SETTEXT=0x000C
-         EM_SETSEL=0x00B1; EM_REPLACESEL=0x00C2 }
+         EM_GETSEL=0x00B0; EM_SETSEL=0x00B1; EM_REPLACESEL=0x00C2 }
 function Get-FocusControl([IntPtr]$top) { [CU.Native]::FocusedControl($top) }
 function Test-EditControl([IntPtr]$h) {
     $cls = [CU.Native]::ClassOf($h)
@@ -711,8 +823,11 @@ function Walk-Uia($root, [int]$maxDepth, [int]$budget, [double]$timeoutSec) {
                 $kids = @()
                 $c = $walker.GetFirstChild($el)
                 while ($c) { $kids += $c; $c = $walker.GetNextSibling($c) }
-                # push reversed so the emitted order matches the visual/tree order
-                for ($i = $kids.Count - 1; $i -ge 0; $i--) { $stack.Push(@($kids[$i], $d + 1)) }
+                # push reversed so the emitted order matches the visual/tree order.
+                # The parens around ($d + 1) are load-bearing: in an array literal a comma binds
+                # tighter than +, so @($el, $d + 1) builds THREE elements [$el, $d, 1] and $item[1]
+                # reads back the parent's depth. That is why every row used to report Depth 0.
+                for ($i = $kids.Count - 1; $i -ge 0; $i--) { $stack.Push(@($kids[$i], ($d + 1))) }
             } catch {}
         }
     }
@@ -813,6 +928,8 @@ function Invoke-Step([hashtable]$p) {
 
     switch ($act) {
 
+        # ══ Environment ══════════════════════════════════════════════════════════════════════
+        # Read-only, no target window, safe to call first. `profile` is the intended opening move.
         'screen-size' {
             foreach ($sc in [System.Windows.Forms.Screen]::AllScreens) {
                 $b = $sc.Bounds
@@ -824,6 +941,86 @@ function Invoke-Step([hashtable]$p) {
             Write-Output ("virtual-desktop: {0},{1},{2},{3}   (coords may be negative)" -f $vs.X, $vs.Y, $vs.Width, $vs.Height)
         }
 
+        # Live detection AND the stored notes, side by side. The pairing is the whole design: a
+        # note that has gone stale is contradicted by the detector instead of being believed.
+        # Costs nothing extra — the process had to start anyway.
+        'profile' {
+            Write-Output "=== detected now ==="
+            $os = try { (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop) } catch { $null }
+            Write-Output ("host    : {0}   {1}" -f $env:COMPUTERNAME, $(if ($os) { "$($os.Caption) build $($os.BuildNumber)" } else { '?' }))
+            Write-Output ("shell   : PowerShell $($PSVersionTable.PSVersion)")
+            foreach ($sc in [System.Windows.Forms.Screen]::AllScreens) {
+                $b = $sc.Bounds
+                Write-Output ("monitor : {0} {1},{2},{3},{4} @{5}x{6}" -f $sc.DeviceName, $b.X, $b.Y, $b.Width, $b.Height,
+                    (Get-MonitorScale ($b.X + [int]($b.Width/2)) ($b.Y + [int]($b.Height/2))), $(if ($sc.Primary) { '  (primary)' } else { '' }))
+            }
+            $fg = [CU.Native]::GetForegroundWindow()
+            $st = Get-ImeState $fg
+            # Reported for the FOREGROUND window, because conversion mode is per-process: the
+            # value here describes whatever is focused right now, not a machine-wide setting.
+            Write-Output ("ime     : {0}" -f $(if ($st) {
+                "lang=0x{0:X4} ime={1} conv=0x{2:X} native={3} (foreground window)" -f $st.Lang, $st.Ime, $st.Conv, $st.Native
+            } else { 'none detected' }))
+
+            $mem = Join-Path (Split-Path $PSScriptRoot -Parent) 'memory'
+            # Print front matter + the bullets above the first '##'. Detail sections are read on
+            # demand; dumping everything would make this too expensive to run as step one.
+            # Writes only — deliberately returns nothing. A function that both Write-Outputs and
+            # returns a value hands the caller BOTH as one array, and `-match` on an array does
+            # not populate $Matches, so the caller's front-matter checks silently break.
+            function Show-Note([string]$file, [string]$label) {
+                $txt = Get-Content -LiteralPath $file -Raw -Encoding UTF8
+                $body = ($txt -replace '(?s)^---.*?---\s*', '')
+                $summary = ($body -split '(?m)^##\s', 2)[0].Trim()
+                $upd = if ($txt -match '(?m)^updated:\s*(\S+)') { $Matches[1] } else { '?' }
+                Write-Output ""
+                Write-Output "=== $label ($(Split-Path $file -Leaf) - updated $upd) ==="
+                if ($summary) { Write-Output $summary } else { Write-Output "(no entries)" }
+                if ($body -match '(?m)^##\s') { Write-Output "  [detail sections in the file - read it if a bullet matters]" }
+            }
+
+            $machine = Join-Path $mem 'machine.md'
+            $conflicts = @()
+            if (Test-Path $machine) {
+                Show-Note $machine 'machine notes'
+                # The one cross-check worth automating: notes carried to another machine.
+                $mtxt = Get-Content -LiteralPath $machine -Raw -Encoding UTF8
+                if ($mtxt -match '(?m)^host:\s*(\S+)' -and $Matches[1] -ne $env:COMPUTERNAME) {
+                    $conflicts += "machine.md was written on '$($Matches[1])' but this host is '$env:COMPUTERNAME' - treat every entry as unverified here."
+                }
+            } else {
+                Write-Output "`n=== machine notes ===`n(none yet - see memory/README.md before writing any)"
+            }
+
+            $apps = Join-Path $mem 'apps'
+            if (Test-Path $apps) {
+                # `match:` is hand-written, so it can be an invalid regex. This is the recommended
+                # first command of any session — a malformed note must degrade to a message, never
+                # take the whole profile down with it.
+                foreach ($f in Get-ChildItem -LiteralPath $apps -Filter '*.md' -ErrorAction SilentlyContinue) {
+                    try {
+                        $txt = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
+                        $rx = if ($txt -match '(?m)^match:\s*(\S+)') { $Matches[1] } else { [IO.Path]::GetFileNameWithoutExtension($f.Name) }
+                        # Show a note when the caller asked for it, or when that app is running now.
+                        $running = @(Get-Process -ErrorAction SilentlyContinue |
+                                     Where-Object { $_.MainWindowHandle -ne 0 -and $_.ProcessName -match $rx })
+                        if (($filter -and $rx -match [regex]::Escape($filter)) -or (-not $filter -and $running.Count)) {
+                            Show-Note $f.FullName "app notes [$rx]"
+                        }
+                    } catch {
+                        Write-Output "NOTE: skipped memory/apps/$($f.Name) - $($_.Exception.Message)"
+                    }
+                }
+            }
+
+            Write-Output ""
+            if ($conflicts) { $conflicts | ForEach-Object { Write-Output "CONFLICT: $_" } }
+            else { Write-Output "no conflict between detection and notes" }
+        }
+
+        # ══ Probes — zero vision tokens ══════════════════════════════════════════════════════
+        # Answer "what is at this coordinate" without a screenshot. Coordinates are absolute
+        # virtual-desktop px and are validated against the monitor layout before use.
         'mouse-pos' {
             $pt = [CU.Native]::GetPos()
             $mon = Get-MonitorAt $pt.X $pt.Y
@@ -912,6 +1109,10 @@ function Invoke-Step([hashtable]$p) {
             } finally { $bmp.Dispose() }
         }
 
+        # ══ Windows ══════════════════════════════════════════════════════════════════════════
+        # All of these resolve a target through Resolve-Hwnd, which fails loudly when -WindowTitle
+        # matches more than one window. Rects in and out are the DWM VISIBLE frame, the same space
+        # find-window, ui-find and screenshot -Region use.
         'find-window' {
             $wins = Find-Win $winTitle $filter
             if ($wins.Count -eq 0) { Write-Output "no window matches title='$winTitle' process='$filter'"; break }
@@ -968,16 +1169,30 @@ function Invoke-Step([hashtable]$p) {
             if ($w -le 0 -or $h -le 0) { throw "window-move needs a positive -W and -H" }
             [void][CU.Native]::ShowWindow($hh, 9)   # SW_RESTORE (a maximized window won't move)
             Start-Sleep -Milliseconds 80
-            [void][CU.Native]::SetWindowPos($hh, [IntPtr]::Zero, $x, $y, $w, $h, 0x4)   # SWP_NOZORDER
+            # SetWindowPos speaks GetWindowRect coordinates, which include the ~7px invisible
+            # resize border. Every other coordinate in this script — find-window, ui-find,
+            # screenshot -Region, click targets — is the DWM *visible* frame. Moving a window to
+            # X,Y and then cropping at X,Y used to be off by that border on three sides, and the
+            # "app adjusted" note below blamed the app for it. Measure the gap and cancel it out.
+            $wr = [CU.Native]::GetWinRect($hh); $vr = [CU.Native]::GetBounds($hh)
+            $padL = $vr.Left - $wr.Left; $padT = $vr.Top - $wr.Top
+            $padW = ($wr.Right - $wr.Left) - ($vr.Right - $vr.Left)
+            $padH = ($wr.Bottom - $wr.Top) - ($vr.Bottom - $vr.Top)
+            [void][CU.Native]::SetWindowPos($hh, [IntPtr]::Zero, ($x - $padL), ($y - $padT),
+                                            ($w + $padW), ($h + $padH), 0x4)   # SWP_NOZORDER
             [void](Focus-Hwnd $hh)
             Start-Sleep -Milliseconds 120
             $r = [CU.Native]::GetBounds($hh)
             $got = "$($r.Left),$($r.Top),$($r.Right-$r.Left),$($r.Bottom-$r.Top)"
-            # Many apps clamp to a minimum size or snap to a monitor — report what actually happened.
+            # Now that the border is accounted for, a mismatch means the app really did refuse —
+            # a minimum size, a monitor snap. That is worth saying; the border never was.
             $note = if ($got -ne "$x,$y,$w,$h") { "  (app adjusted; requested $x,$y,$w,$h)" } else { '' }
             Write-Output "window-move hwnd $([long]$hh): $got$note"
         }
 
+        # ══ Capture ══════════════════════════════════════════════════════════════════════════
+        # The only action that costs vision tokens (≈ w*h/750). Prints its own `map:` line so the
+        # caller reads coordinates off it rather than recomputing them. Never contains the cursor.
         'screenshot' {
             if (-not $path) { throw "screenshot needs -Path" }
             $rect = Resolve-CaptureRect (-not $noFocus)
@@ -991,6 +1206,10 @@ function Invoke-Step([hashtable]$p) {
             Write-Output ("map: screen_x = {0} + image_x / {1:F4} ;  screen_y = {2} + image_y / {1:F4}" -f $rect.X, $factor, $rect.Y)
         }
 
+        # ══ Mouse ════════════════════════════════════════════════════════════════════════════
+        # Every coordinate goes through Assert-OnScreen first: a point inside the virtual bounding
+        # box but on no physical monitor silently discards input, so it is rejected instead.
+        # -Modifiers is held around the action by Push-/Pop-Modifiers.
         'move' {
             Assert-OnScreen $x $y 'move'
             Move-To $x $y 0
@@ -1083,6 +1302,11 @@ function Invoke-Step([hashtable]$p) {
         #   clipboard clipboard + ctrl+v — works everywhere (Electron, WPF, Qt, browsers) but
         #             the ctrl+v can be eaten by a CJK IME.
         #   auto      msg when the focused control is a real Win32 edit, else clipboard.
+        # ══ Text & keyboard ══════════════════════════════════════════════════════════════════
+        # Ranked by how little they touch the keyboard, because the keyboard is where an IME can
+        # interfere: `edit` and `type -Mode msg` send window messages (no keys at all), `type
+        # -Mode clipboard` needs one ctrl+v, `keys` is pure injection. Prefer the earliest that
+        # works on the target control.
         'type' {
             if (-not $p.ContainsKey('Text')) { throw "type needs -Text" }
             Focus-If-Targeted
@@ -1115,7 +1339,10 @@ function Invoke-Step([hashtable]$p) {
             $old = Get-ClipText
             if (-not (Set-ClipText $text)) { throw "Could not put text on the clipboard (another app is holding it open). Retry, or use -Mode msg." }
             Start-Sleep -Milliseconds 120
-            $warn = Get-ImeWarning 'v'
+            # Ask about the combo actually sent, not the bare letter inside it: ctrl+v carries a
+            # modifier, so Get-ImeWarning correctly stays silent. Passing 'v' here made every
+            # clipboard paste on a CJK desktop print a warning that did not apply.
+            $warn = Get-ImeWarning 'ctrl+v'
             if ($warn) { Write-Output $warn }
             Send-Combo 'ctrl+v'
             Start-Sleep -Milliseconds ([Math]::Min(600, 180 + [int]($text.Length / 40)))   # long pastes need longer
@@ -1143,6 +1370,17 @@ function Invoke-Step([hashtable]$p) {
                 'selectall' { [void](Send-Msg $ctrl $WM.EM_SETSEL 0 -1); Write-Output "selected all in '$cls'" }
                 'clear'     { [void](Send-Msg $ctrl $WM.EM_SETSEL 0 -1); [void](Send-Msg $ctrl $WM.CLEAR 0 0); Write-Output "cleared '$cls'" }
                 'copy'      {
+                    # WM_COPY with an empty selection is a NO-OP: the clipboard keeps whatever it
+                    # already held, and handing that back is indistinguishable from a successful
+                    # read. A verification step that lies is worse than an action that fails, so
+                    # refuse rather than return a plausible-looking stale value.
+                    $sel = (Send-Msg $ctrl $WM.EM_GETSEL 0 0).Result
+                    if (($sel -band 0xFFFF) -eq (($sel -shr 16) -band 0xFFFF)) {
+                        throw ("edit -Mode copy needs a selection, and '$cls' has none. WM_COPY " +
+                               "would leave the clipboard untouched, so you would get its OLD " +
+                               "contents back as if they were fresh. Use -Mode read for the whole " +
+                               "control, or -Mode selectall first.")
+                    }
                     [void](Send-Msg $ctrl $WM.COPY 0 0); Start-Sleep -Milliseconds 120
                     $c = Get-ClipText
                     Write-Output "copied from '$cls' ($($c.Length) chars):"; Write-Output $c
@@ -1170,7 +1408,9 @@ function Invoke-Step([hashtable]$p) {
             $combos = @(($keys -split '\s+') | Where-Object { $_ })
             $warn = Get-ImeWarning $keys
             if ($warn) { Write-Output $warn }
-            foreach ($combo in $combos) { Send-Combo $combo; Start-Sleep -Milliseconds 60 }
+            # -HoldMs keeps each combo pressed (games, some Electron apps). 0 = press and release
+            # in a single SendInput call, which is what makes modifiers survive.
+            foreach ($combo in $combos) { Send-Combo $combo $holdMs; Start-Sleep -Milliseconds 60 }
             if ($delay -gt 0) { Start-Sleep -Milliseconds ([int]($delay * 1000)) }
             Write-Output "sent keys: $keys"
         }
@@ -1236,25 +1476,41 @@ function Invoke-Step([hashtable]$p) {
             $maxDepth = if ($depth -gt 0) { $depth } elseif ($act -eq 'ui-tree') { 4 } else { 12 }
             $tmo = if ($timeout -gt 0) { $timeout } else { 8 }
             $res = Walk-Uia $root $maxDepth 2500 $tmo
-            $rows = $res.Rows
+            # Rows is a List[object], and @(aList) THROWS "Argument types do not match" on both
+            # PS 5.1 and 7 — the array subexpression, not .Count. Cast instead. ui-tree used to
+            # die here every single time; ui-find only survived because its Where-Object filters
+            # happened to produce an array first. Keep $rows an Object[] from here on.
+            $rows = [object[]]$res.Rows
             if ($act -eq 'ui-find') {
-                if ($name)   { $rows = $rows | Where-Object { $_.Name -like "*$name*" } }
-                if ($filter) { $rows = $rows | Where-Object { $_.Type -like "*$filter*" } }
-                $rows = $rows | Where-Object { -not $_.Off -and $_.Rect -ne '-' }
+                if ($name)   { $rows = @($rows | Where-Object { $_.Name -like "*$name*" }) }
+                if ($filter) { $rows = @($rows | Where-Object { $_.Type -like "*$filter*" }) }
+                $rows = @($rows | Where-Object { -not $_.Off -and $_.Rect -ne '-' })
             }
             $max = if ($p.ContainsKey('Count')) { $count } else { 40 }
             $shown = @($rows | Select-Object -First $max)
             if ($shown.Count -eq 0) {
-                Write-Output "no UIA match (name~'$name' type~'$filter', depth<=$maxDepth). Chromium/Electron trees are often empty — use screenshot + cursor-type instead."
+                Write-Output "no UIA match (name~'$name' type~'$filter', depth<=$maxDepth). Re-run once before falling back to vision — see the stub note below."
             } else {
                 $shown | Format-Table Depth, Type, Name, AutoId, Rect, Click, Enabled -AutoSize | Out-String -Width 240 | Write-Output
                 Write-Output "Click = exact centre in absolute screen px; feed it straight to -Action click."
             }
-            $extra = @($rows).Count - $shown.Count
+            $extra = $rows.Count - $shown.Count
             if ($extra -gt 0) { Write-Output "... $extra more (raise -Count, or narrow with -Name/-Filter)" }
+            # Chromium/Electron build their accessibility tree only once an AT client connects, so
+            # the very first walk against a fresh app process can return a bare stub. Measured on
+            # VS Code: 14 nodes first time, 84 every time after — and the tree STAYS built, even
+            # for later script invocations. So the cure is one repeat call, not a sleep on every
+            # walk, and definitely not "give up and use screenshots" (which is what this used to
+            # say, and it stopped people one step short of a fully addressable tree).
+            if (-not ($rows | Where-Object { $_.Name -and $_.Type -notmatch '^(Window|Pane|Group|Custom)$' })) {
+                Write-Output "NOTE: nothing here but unnamed containers — this can be an accessibility tree that has not been built yet. Run the SAME command once more; if it is still bare, then fall back to screenshot + cursor-type."
+            }
             if ($res.Truncated) { Write-Output "WARNING: walk hit the node/time budget ($($res.Ms)ms) — results are partial; narrow with -Depth." }
         }
 
+        # ══ Waits ════════════════════════════════════════════════════════════════════════════
+        # Always preferable to a blind sleep: these return the moment the condition holds, and
+        # fail loudly on timeout instead of letting the next step act on a half-ready window.
         'wait-window' {
             if (-not $winTitle -and -not $filter) { throw "wait-window needs -WindowTitle (and/or -Filter for the process name)" }
             $tmo = if ($timeout -gt 0) { $timeout } else { 15 }
