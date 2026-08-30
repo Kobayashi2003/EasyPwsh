@@ -65,7 +65,7 @@ try {
         & $args[0]
     } else {
         $exe = $args[0]
-        $rest = if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() }
+        [object[]]$rest = if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() }
         & $exe @rest
     }
     exit $LASTEXITCODE
