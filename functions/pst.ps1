@@ -1,1 +1,1 @@
-function pst { Get-Clipboard }
+﻿function pst { Get-Clipboard }

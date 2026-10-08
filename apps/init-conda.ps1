@@ -27,12 +27,12 @@ function global:conda {
     Remove-Item Function:\conda -Force -ErrorAction SilentlyContinue
     $__conda_exe   = (Get-Command conda -CommandType Application | Select-Object -First 1).Source
     $__conda_dir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
-    $__conda_cache = Join-Path $__conda_dir 'conda-hook.ps1'
+    $__conda_cache = Join-Path $__conda_dir ('conda-hook-utf8-ps{0}.ps1' -f $PSVersionTable.PSVersion.Major)
     if (-not (Test-Path $__conda_cache) -or
         ((Get-Item $__conda_exe).LastWriteTimeUtc -gt (Get-Item $__conda_cache).LastWriteTimeUtc)) {
         if (-not (Test-Path $__conda_dir)) { New-Item -ItemType Directory -Force -Path $__conda_dir | Out-Null }
-        (& $__conda_exe 'shell.powershell' 'hook' | Out-String) |
-            Set-Content -LiteralPath $__conda_cache -Encoding UTF8
+        $hook = Invoke-EasyPwshUtf8Command -FilePath $__conda_exe -ArgumentList @('shell.powershell', 'hook') -Environment @{ PYTHONIOENCODING = 'utf-8' }
+        [IO.File]::WriteAllText($__conda_cache, $hook, [Text.UTF8Encoding]::new($true))
     }
     . $__conda_cache
     conda @args

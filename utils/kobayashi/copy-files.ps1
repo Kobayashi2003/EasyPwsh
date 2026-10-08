@@ -16,7 +16,7 @@ param (
 )
 
 try {
-    if ($global:PSVERSION -lt 6) {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
         Set-Clipboard -Path $path
     } else {
         Add-Type -AssemblyName System.Windows.Forms

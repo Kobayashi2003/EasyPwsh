@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Standalone engine for reading mouse clicks as console-cell coordinates.
     Mouse reporting is only active while a capture is in progress, so key

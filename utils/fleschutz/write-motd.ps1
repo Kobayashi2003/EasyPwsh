@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Writes the message of the day
 .DESCRIPTION
@@ -23,7 +23,7 @@ $TimeZone = (Get-TimeZone).id
 
 $UserName = [Environment]::USERNAME
 $ComputerName = [System.Net.Dns]::GetHostName().ToLower()
-$OSName = "$((Get-WmiObject win32_operatingsystem).caption) Build: $([System.Environment]::OSVersion.Version.Build)"
+$OSName = "$((Get-CimInstance win32_operatingsystem).caption) Build: $([System.Environment]::OSVersion.Version.Build)"
 $Kernel = "NT" # todo
 $Kernel_Info = "" # todo
 
@@ -35,7 +35,7 @@ $PowerShellEdition = $PSVersionTable.PSEdition
 
 $CPU_Info = $env:PROCESSOR_IDENTIFIER + ' Rev: ' + $env:PROCESSOR_REVISION
 $NumberOfProcesses = (Get-Process).Count
-$CurrentLoad = "{0}%" -f $(Get-WmiObject Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average)
+$CurrentLoad = "{0}%" -f $(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average)
 # $Logical_Disk = Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object -Property DeviceID -eq $OS.SystemDrive
 # $Processor = Get-CimInstance -ClassName Win32_Processor
 # $Memory_Size = "{0}mb/{1}mb Used" -f (([math]::round($ReturnedValues.Operating_System.TotalVisibleMemorySize / 1KB)) - ([math]::round($ReturnedValues.Operating_System.FreePhysicalMemory / 1KB))), ([math]::round($ReturnedValues.Operating_System.TotalVisibleMemorySize / 1KB))

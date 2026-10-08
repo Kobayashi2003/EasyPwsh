@@ -1,4 +1,4 @@
-$global:CURRENT_SCRIPT_DIRECTORY = Split-Path (Split-Path $MyInvocation.MyCommand.Definition)
+﻿$global:CURRENT_SCRIPT_DIRECTORY = Split-Path (Split-Path $MyInvocation.MyCommand.Definition)
 
 # ─── Startup timing harness ─────────────────────────────────────────────────
 # Timings are always recorded (Stopwatch overhead is negligible); the summary is

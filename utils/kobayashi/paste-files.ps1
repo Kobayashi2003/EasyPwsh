@@ -30,7 +30,7 @@ param (
 )
 
 try {
-    if ($global:PSVERSION -lt 6) {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
         $items = Get-Clipboard -Format FileDrop
     } else {
         Add-Type -AssemblyName System.Windows.Forms

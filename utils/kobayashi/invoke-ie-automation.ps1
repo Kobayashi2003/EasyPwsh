@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Automates Internet Explorer using COM automation.
 .DESCRIPTION

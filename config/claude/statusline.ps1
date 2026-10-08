@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Claude Code statusline renderer.
 .DESCRIPTION

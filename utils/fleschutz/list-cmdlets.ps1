@@ -18,7 +18,7 @@
 #>
 
 try {
-	Get-Command -Command-Type cmdlet
+	Get-Command -CommandType cmdlet
 	exit 0 # success
 } catch {
 	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"

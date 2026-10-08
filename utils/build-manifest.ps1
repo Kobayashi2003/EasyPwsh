@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Builds the utils manifest (utils/manifest.json)
 .DESCRIPTION

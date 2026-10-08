@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Shared helper for linking a repo-managed config file into its expected
     location in the user's home directory.
@@ -35,7 +35,7 @@ function global:New-ManagedSymlink {
     $existing = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
     if ($existing) {
         # A real file the user put there themselves is left alone, not replaced.
-        if ($existing.LinkTarget -eq (Resolve-Path -LiteralPath $Target).Path) { return }
+        if ($existing.Target -eq (Resolve-Path -LiteralPath $Target).Path) { return }
         Write-Warning "Not linking $Path -> $Target (path already exists)."
         return
     }
@@ -90,10 +90,10 @@ function global:Remove-ManagedSymlink {
     )
 
     $existing = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-    if (-not $existing -or -not $existing.LinkTarget) { return }
+    if (-not $existing -or $existing.LinkType -ne 'SymbolicLink' -or -not $existing.Target) { return }
 
     $resolvedTarget = if (Test-Path -LiteralPath $Target) { (Resolve-Path -LiteralPath $Target).Path } else { $Target }
-    if ($existing.LinkTarget -ne $resolvedTarget) { return }
+    if ($existing.Target -ne $resolvedTarget) { return }
 
     Remove-Item -LiteralPath $Path -Force
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
         Change the system locale
     .PARAMETER Locale

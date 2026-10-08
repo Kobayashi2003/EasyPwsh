@@ -65,6 +65,8 @@ function Get-UwpExePath {
 # Profiles are built at runtime so paths are always current.
 function Get-TerminalProfiles {
 
+    $terminalShell = if (Get-Command pwsh -CommandType Application -ErrorAction SilentlyContinue) { 'pwsh.exe' } else { 'powershell.exe' }
+
     # --- Windows Terminal (stable) ---
     $wtExe = Get-UwpExePath -PackageFamilyName 'Microsoft.WindowsTerminal_8wekyb3d8bbwe' -ExeName 'wt.exe'
 
@@ -91,7 +93,7 @@ function Get-TerminalProfiles {
             Icon      = if ($wtExe) { "$wtExe,0" } else { 'powershell.exe,0' }
             # cmd /c start launches the UWP alias properly without a visible cmd window
             # Using "start wt" lets Windows resolve the AppExecutionAlias correctly
-            Command   = 'cmd.exe /c start wt.exe new-tab -d "%V" pwsh.exe -NoProfile -NoExit'
+            Command   = "cmd.exe /c start wt.exe new-tab -d `"%V`" $terminalShell -NoProfile -NoExit"
             ExePath   = $wtExe
         }
 
@@ -101,9 +103,9 @@ function Get-TerminalProfiles {
             Icon      = if ($wtpExe) { "$wtpExe,0" } else { 'powershell.exe,0' }
             # For Preview the alias name differs; use the full alias path via cmd /c start
             Command   = if ($wtpExe) {
-                            "cmd.exe /c start `"`" `"$wtpExe`" new-tab -d `"%V`" pwsh.exe -NoProfile -NoExit"
+                            "cmd.exe /c start `"`" `"$wtpExe`" new-tab -d `"%V`" $terminalShell -NoProfile -NoExit"
                         } else {
-                            'cmd.exe /c start wt.exe new-tab -d "%V" pwsh.exe -NoProfile -NoExit'
+                            "cmd.exe /c start wt.exe new-tab -d `"%V`" $terminalShell -NoProfile -NoExit"
                         }
             ExePath   = $wtpExe
         }

@@ -28,13 +28,13 @@ if (-not (Get-Command "pixi" -ErrorAction SilentlyContinue)) {
 # Cache the generated completion script; regenerate only when pixi.exe changes.
 # Avoids spawning pixi (~160ms) on every shell start.
 $__pixiDir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
-$__pixiCache = Join-Path $__pixiDir 'pixi-completion.ps1'
+$__pixiCache = Join-Path $__pixiDir ('pixi-completion-utf8-ps{0}.ps1' -f $PSVersionTable.PSVersion.Major)
 $__pixiExe   = (Get-Command pixi -CommandType Application | Select-Object -First 1).Source
 if (-not (Test-Path $__pixiCache) -or
     ((Get-Item $__pixiExe).LastWriteTimeUtc -gt (Get-Item $__pixiCache).LastWriteTimeUtc)) {
     if (-not (Test-Path $__pixiDir)) { New-Item -ItemType Directory -Force -Path $__pixiDir | Out-Null }
-    (& $__pixiExe completion --shell powershell) | Out-String |
-        Set-Content -LiteralPath $__pixiCache -Encoding UTF8
+    $completion = Invoke-EasyPwshUtf8Command -FilePath $__pixiExe -ArgumentList @('completion', '--shell', 'powershell')
+    [IO.File]::WriteAllText($__pixiCache, $completion, [Text.UTF8Encoding]::new($true))
 }
 . $__pixiCache
 #endregion

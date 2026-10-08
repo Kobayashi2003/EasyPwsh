@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Prints the current moon phase
 .DESCRIPTION

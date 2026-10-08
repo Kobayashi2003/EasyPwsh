@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Flattens nested folders with identical names
 .DESCRIPTION

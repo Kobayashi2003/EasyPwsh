@@ -28,7 +28,7 @@ function global:view-image { param (
             # Keep the extension: chafa picks its loader from the file name.
             $extension = [System.IO.Path]::GetExtension(([Uri] $path).AbsolutePath)
             $tmp = "$env:TEMP\$((New-Guid).ToString())$extension"
-            Invoke-WebRequest -Uri $path -OutFile $tmp
+            Invoke-WebRequest -UseBasicParsing -Uri $path -OutFile $tmp
             $path = $tmp
         }
 

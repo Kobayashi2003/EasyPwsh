@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Shows Windows notifications using WScript.Shell.
 .DESCRIPTION

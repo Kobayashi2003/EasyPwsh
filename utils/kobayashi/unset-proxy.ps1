@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Removes the proxy environment variables (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY)
 .DESCRIPTION

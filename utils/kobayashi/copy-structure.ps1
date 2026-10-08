@@ -1,4 +1,4 @@
-#
+﻿#
 <#
 .SYNOPSIS
     Copies folder structure with controllable depth and file options

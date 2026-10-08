@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Removes duplicate files in a directory
 .DESCRIPTION

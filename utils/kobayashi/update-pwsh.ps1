@@ -48,7 +48,7 @@ try {
             $downloadUrl = $asset.browser_download_url
             $installerPath = Join-Path $env:TEMP "PowerShell-$latestVersion-win-x64.msi"
 
-            Invoke-WebRequest -Uri $downloadUrl -OutFile $installerPath
+            Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $installerPath
 
             "Download complete. Starting installer in a new process..."
 

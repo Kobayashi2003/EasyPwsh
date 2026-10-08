@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Switches a Shelly1 device
 .DESCRIPTION

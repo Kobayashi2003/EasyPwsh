@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Connect to postgres database using harlequin.
 

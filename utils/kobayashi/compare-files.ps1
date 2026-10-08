@@ -1,4 +1,4 @@
-#
+﻿#
 <#
 .SYNOPSIS
     Compares the contents of two files with color-coded differences
@@ -59,10 +59,10 @@ function Get-StringSimilarity {
             $cost = if ($str1[$i - 1] -eq $str2[$j - 1]) { 0 } else { 1 }
             $matrix[$i, $j] = [Math]::Min(
                 [Math]::Min(
-                    $matrix[($i - 1), $j] + 1,      # Deletion
-                    $matrix[$i, ($j - 1)] + 1       # Insertion
+                    ($matrix[($i - 1), $j] + 1),      # Deletion
+                    ($matrix[$i, ($j - 1)] + 1)       # Insertion
                 ),
-                $matrix[($i - 1), ($j - 1)] + $cost # Substitution
+                ($matrix[($i - 1), ($j - 1)] + $cost) # Substitution
             )
         }
     }

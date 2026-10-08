@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 
 param(
     [ValidateSet("Disable", "Enable", "Status")]
@@ -11,7 +11,7 @@ $valueName = "FolderType"
 function Get-Status {
     try {
         $value = Get-ItemProperty -Path $registryPath -Name $valueName -ErrorAction SilentlyContinue
-        return ($value -and $value.$valueName -eq "NotSpecified") ? "Disabled" : "Enabled"
+        if ($value -and $value.$valueName -eq "NotSpecified") { return "Disabled" }; return "Enabled"
     }
     catch { return "Enabled" }
 }

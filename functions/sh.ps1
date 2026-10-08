@@ -5,9 +5,6 @@
 .EXAMPLE
     PS> sh -c "Get-ChildItem | Format-Table Mode, Owner, Length, LastWriteTime, Name"
 #>
-    if ($global:PSVERSION -lt 7.0) {
-        powershell $Args
-    } else {
-        pwsh $Args
-    }
+    $shellPath = Join-Path $PSHOME $(if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell.exe' } else { 'pwsh.exe' })
+    & $shellPath @args
 }

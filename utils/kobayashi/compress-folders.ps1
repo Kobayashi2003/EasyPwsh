@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Compresses each direct subfolder of a directory into its own archive
 .DESCRIPTION

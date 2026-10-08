@@ -1,4 +1,4 @@
-function global:check-module {
+﻿function global:check-module {
 <#
 .SYNOPSIS
     Check if module is installed, installing it when no local version satisfies

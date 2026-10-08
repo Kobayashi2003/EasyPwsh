@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Text-to-speech utility using SAPI.SpVoice.
 .DESCRIPTION

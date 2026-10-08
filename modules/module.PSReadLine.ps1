@@ -1,12 +1,18 @@
-using namespace System.Management.Automation
+﻿using namespace System.Management.Automation
 using namespace System.Management.Automation.Language
 
 
+$__psrlCommand = Get-Command Set-PSReadLineOption -ErrorAction SilentlyContinue
+if (-not $__psrlCommand) { return }
+$__psrlOptions = $__psrlCommand.Parameters
+$global:__PSRLHasAcceptNextSuggestionWord = [bool](
+    [Microsoft.PowerShell.PSConsoleReadLine].GetMethods() | Where-Object Name -EQ 'AcceptNextSuggestionWord')
 Set-PSReadLineOption -BellStyle None
 # Set-PSReadLineOption -EditMode Emacs
 Set-PSReadLineOption -EditMode Windows
 
 # The color option
+if ($__psrlOptions.ContainsKey('Colors')) {
 Set-PSReadLineOption -Colors @{
 #  Command            = 'Magenta'
 #  Number             = 'DarkGray'
@@ -18,8 +24,11 @@ Set-PSReadLineOption -Colors @{
 #  ContinuationPrompt = 'DarkGreen'
 #  Default            = 'DarkGray'
 }
+}
 
-Set-PSReadLineOption -PromptText ' > ', ' X ' # replace the ' > ' character with a red ' X '
+if ($__psrlOptions.ContainsKey('PromptText')) {
+Set-PSReadLineOption -PromptText ' > ', ' X '
+} # replace the ' > ' character with a red ' X '
 
 # set the file path to save the history
 
@@ -33,6 +42,7 @@ Set-PSReadLineOption -MaximumHistoryCount 100000
 # $history_save_path = (Get-PSReadLineOption).HistorySavePath
 
 # set the filter for the history
+if ($__psrlOptions.ContainsKey('AddToHistoryHandler')) {
 Set-PSReadLineOption -AddToHistoryHandler {
     param([string]$line)
 
@@ -49,11 +59,35 @@ Set-PSReadLineOption -AddToHistoryHandler {
     }
     return $true
 }
+}
 
 # prediction configuration
-Set-PSReadLineOption -PredictionSource HistoryAndPlugin
-# Set-PSReadLineOption -PredictionViewStyle ListView
-Set-PSReadLineOption -PredictionViewStyle InlineView
+# Prediction requires both module support and an interactive VT-capable host.
+function global:Get-EasyPwshPredictionSource {
+    param([version]$EngineVersion, [string[]]$SupportedSources, [bool]$SupportsVT)
+    if (-not $SupportsVT) { return 'None' }
+    if ($EngineVersion -ge [version]'7.2' -and $SupportedSources -contains 'HistoryAndPlugin') {
+        return 'HistoryAndPlugin'
+    }
+    if ($SupportedSources -contains 'History') { return 'History' }
+    return 'None'
+}
+if ($__psrlOptions.ContainsKey('PredictionSource')) {
+    $sources = [Enum]::GetNames($__psrlOptions['PredictionSource'].ParameterType)
+    $supportsVT = $Host.UI.SupportsVirtualTerminal -and
+        -not [Console]::IsOutputRedirected -and -not [Console]::IsInputRedirected
+    $source = Get-EasyPwshPredictionSource $PSVersionTable.PSVersion $sources $supportsVT
+    try {
+        Set-PSReadLineOption -PredictionSource $source -ErrorAction Stop
+    } catch {
+        # Host VT detection is advisory; disabling prediction is always safe.
+        Set-PSReadLineOption -PredictionSource None
+        Write-Verbose "Prediction disabled: $($_.Exception.Message)"
+    }
+    if ($__psrlOptions.ContainsKey('PredictionViewStyle')) {
+        Set-PSReadLineOption -PredictionViewStyle InlineView
+    }
+}
 
 # Shows navigable menu of all options when hitting Tab
 Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
@@ -776,6 +810,7 @@ $global:PSRL_CMD_MAP = @{
     }
 }
 
+if ($__psrlOptions.ContainsKey('CommandValidationHandler')) {
 Set-PSReadLineOption -CommandValidationHandler {
     param([CommandAst]$CommandAst)
 
@@ -804,6 +839,7 @@ Set-PSReadLineOption -CommandValidationHandler {
             $cmdArg.StartOffset, $cmdArg.EndOffset - $cmdArg.StartOffset,
             $newCont)
     }
+}
 }
 # This checks the validation script when you hit enter
 Set-PSReadLineKeyHandler -Chord Enter -Function ValidateAndAcceptLine
@@ -858,7 +894,11 @@ Set-PSReadLineKeyHandler -Key RightArrow `
     if ($cursor -lt $line.Length) {
         [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
     } else {
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
+        if ($global:__PSRLHasAcceptNextSuggestionWord) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
+        } else {
+            [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
+        }
     }
 }
 
@@ -1016,7 +1056,11 @@ Set-PSReadLineKeyHandler -Key Ctrl+RightArrow `
 
     # if is the end of line, accept the next suggestion word
     if ($cursor -eq $line.Length) {
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
+        if ($global:__PSRLHasAcceptNextSuggestionWord) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptNextSuggestionWord($key, $arg)
+        } else {
+            [Microsoft.PowerShell.PSConsoleReadLine]::ForwardChar($key, $arg)
+        }
         return
     }
 
@@ -1346,7 +1390,7 @@ function global:__Copy-Files {
     }
 
     try {
-        if ($global:PSVERSION -lt 6) {
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
             Set-Clipboard -Path $path
         } else {
             Add-Type -AssemblyName System.Windows.Forms
@@ -1429,7 +1473,7 @@ Set-PSReadLineKeyHandler -Key Ctrl+V `
 
     param($key, $arg)
 
-    if ($global:PSVERSION -lt 6) {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
         $files = Get-Clipboard -Format FileDrop
     } else {
         Add-Type -AssemblyName System.Windows.Forms

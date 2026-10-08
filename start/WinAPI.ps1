@@ -3,7 +3,7 @@
 # carries the source mtime: editing this file makes the next shell compile a
 # fresh build even while running shells keep the previous one loaded and locked.
 $__winapiDir = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
-$__winapiDll = Join-Path $__winapiDir ('WinAPI-{0:x}.dll' -f (Get-Item $PSCommandPath).LastWriteTimeUtc.Ticks)
+$__winapiDll = Join-Path $__winapiDir ('WinAPI-ps{0}-clr{1}-{2:x}.dll' -f $PSVersionTable.PSVersion.Major, [Environment]::Version.Major, (Get-Item $PSCommandPath).LastWriteTimeUtc.Ticks)
 
 if (-not ('WinApi' -as [type])) {
     if (-not (Test-Path $__winapiDll)) {
@@ -261,7 +261,7 @@ if (-not ('WinApi' -as [type])) {
     }
 '@ -OutputAssembly $__winapiDll
         # Drop superseded builds; ones still locked by older shells stay until later.
-        Get-ChildItem (Join-Path $__winapiDir 'WinAPI*.dll') |
+        Get-ChildItem (Join-Path $__winapiDir ('WinAPI-ps{0}-clr{1}-*.dll' -f $PSVersionTable.PSVersion.Major, [Environment]::Version.Major)) |
             Where-Object { $_.FullName -ne $__winapiDll } |
             Remove-Item -Force -ErrorAction SilentlyContinue
     }

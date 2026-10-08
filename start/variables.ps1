@@ -1,10 +1,10 @@
-<#
+﻿<#
 .SYNOPSIS
     This script is used to declare some global variables,
     which will be declared before other scripts run
 #>
 
-$global:PSVERSION   = (Get-Host).Version.ToString()
+$global:PSVERSION   = [version]($PSVersionTable.PSVersion.ToString() -replace '-.*$', '')
 $global:USERPROFILE = [Environment]::GetFolderPath("UserProfile")
 $global:DESKTOP     = [Environment]::GetFolderPath("Desktop")
 $global:DOCUMENTS   = [Environment]::GetFolderPath("MyDocuments")
@@ -130,8 +130,9 @@ $global:MODULES = $( if (-not $IMPORT_MODULES) { @{} } else {
 @{
     # --- Shell editing ---
     # Keybindings and prediction (modules\module.PSReadLine.ps1).
-    # 2.3.4 is the last release supporting PowerShell < 7.2.
-    "PSReadLine"         = $(if ($global:PSVERSION -ge "7.2.0") { "latest" } else { "==2.3.4" })
+    # Keep a conservative tested ceiling on older engines, while allowing
+    # installed older releases. Feature support is probed in module.PSReadLine.ps1.
+    "PSReadLine"         = $(if ($global:PSVERSION -ge [version]"7.2.0") { "latest" } else { "<=2.3.4" })
 }})
 
 $global:MODULES_OPTIONAL = $( if (-not $IMPORT_MODULES) { @{} } else {
@@ -143,7 +144,7 @@ $global:MODULES_OPTIONAL = $( if (-not $IMPORT_MODULES) { @{} } else {
     # --- Fuzzy finding ---
     # Needs the 'fzf' and 'fd' Scoop apps (config\scoop\catalog.ps1).
     # Note: it binds an 'fd' alias, which shadows the fd executable.
-    # "PSFzf"              = $(if ($global:PSVERSION -ge "7.2.0") { "latest" } else { "==2.0.0" })
+    # "PSFzf"              = $(if ($global:PSVERSION -ge [version]"7.2.0") { "latest" } else { "==2.0.0" })
 
     # --- Listing & prompt ---
     # "Get-ChildItemColor" = "latest"   # colorized ls/l (modules\module.Get-ChildItemColor.ps1)

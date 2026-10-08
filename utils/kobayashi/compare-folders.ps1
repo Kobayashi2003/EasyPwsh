@@ -1,4 +1,4 @@
-#
+﻿#
 <#
 .SYNOPSIS
     Compares the contents of two folders with color-coded differences

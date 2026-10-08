@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Configures the global Git identity, line-ending policy and SSH key
 .DESCRIPTION

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists system information of the local computer
 .DESCRIPTION
@@ -12,18 +12,18 @@
 #>
 
 # RAM
-$RAM = Get-WmiObject -Query "SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem"
+$RAM = Get-CimInstance -Query "SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem"
 
 $totalRAM = [math]::Round($RAM.TotalVisibleMemorySize/1MB, 2)
 $freeRAM = [math]::Round($RAM.FreePhysicalMemory/1MB, 2)
 $usedRAM = [math]::Round(($RAM.TotalVisibleMemorySize - $RAM.FreePhysicalMemory)/1MB, 2)
 
 # Operating System
-$OS = Get-WmiObject -class Win32_OperatingSystem
+$OS = Get-CimInstance -class Win32_OperatingSystem
 
 $OS_Name = $OS.Caption
-$OS_InstallDate = $OS.ConvertToDateTime($OS.InstallDate)
-$OS_LastBootUpTime = $OS.ConvertToDateTime($OS.LastBootUpTime)
+$OS_InstallDate = $OS.InstallDate
+$OS_LastBootUpTime = $OS.LastBootUpTime
 $OS_Architecture = $OS.OSArchitecture
 $OS_SystemDrive = $OS.SystemDrive
 $OS_WindowsDirectory = $OS.WindowsDirectory
@@ -33,22 +33,22 @@ $OS_Version = $OS.Version
 $OS_Manufacturer = $OS.Manufacturer
 
 # Computer System
-$CS = Get-WmiObject -class Win32_ComputerSystem
+$CS = Get-CimInstance -class Win32_ComputerSystem
 
 $CS_Name = $CS.Name
 $CS_Owner = $CS.PrimaryOwnerName
 
 # CPU
-$CPU = Get-WmiObject -class Win32_Processor
+$CPU = Get-CimInstance -class Win32_Processor
 
 $CPU_Name = $CPU.Name
 $CPU_Manufacturer = $CPU.Manufacturer
 $CPU_MaxClockSpeed = $CPU.MaxClockSpeed / 1000
-$CPU_Used = (Get-WmiObject win32_processor).LoadPercentage
+$CPU_Used = (Get-CimInstance win32_processor).LoadPercentage
 $CPU_Free = 100 - $CPU_Used
 
 # Disk
-$Disk = Get-WmiObject -class Win32_LogicalDisk -Filter "DeviceID='C:'"
+$Disk = Get-CimInstance -class Win32_LogicalDisk -Filter "DeviceID='C:'"
 $Disk_ID = $Disk.DeviceID
 $Disk_TotalSpace = [math]::Round($Disk.Size/1GB, 2)
 $Disk_FreeSpace = [math]::Round($Disk.FreeSpace/1GB, 2)

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Quickly changes a display's resolution and/or scaling.
 

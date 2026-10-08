@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Moves files and directories to the recycle bin.
 .DESCRIPTION

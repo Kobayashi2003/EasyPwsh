@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Drives the Chrome DevTools front end over CDP
 .DESCRIPTION

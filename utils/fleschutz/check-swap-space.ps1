@@ -36,7 +36,7 @@ try {
 		[int64]$used = $Result.substring(20,13)
 		[int64]$free = $Result.substring(32,11)
 	} else {
-		$items = Get-WmiObject -class "Win32_PageFileUsage" -namespace "root\CIMV2" -computername localhost
+		$items = Get-CimInstance -class "Win32_PageFileUsage" -namespace "root\CIMV2"
 		[int64]$total = [int64]$used = 0
 		foreach ($item in $items) {
 			$total += $item.AllocatedBaseSize

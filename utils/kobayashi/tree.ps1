@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Displays directory structure in a tree-like format
 .DESCRIPTION

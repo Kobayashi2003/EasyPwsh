@@ -291,7 +291,7 @@ function Show-BinaryType {
         if (Get-Command 'get-hex-dump' -ErrorAction SilentlyContinue) {
             get-hex-dump $file_path
         } elseif (Get-Command 'Format-Hex' -ErrorAction SilentlyContinue) {
-            if ($global:PSVERSION -gt 6.0) {
+            if ($PSVersionTable.PSVersion.Major -ge 6) {
                 Format-Hex $file_path -Count ($preview_width * $preview_height)
             } else {
                 Format-Hex $file_path

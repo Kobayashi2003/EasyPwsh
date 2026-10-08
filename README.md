@@ -1,4 +1,4 @@
-```
+﻿```
  _______    ________   ________        ___    ___
 |\  ___ \  |\   __  \ |\   ____\      |\  \  /  /|
 \ \   __/| \ \  \|\  \\ \  \___|_     \ \  \/  / /
@@ -25,6 +25,25 @@
                                       |_|\_\ \___/ |_.__/  \__,_| \__, | \__,_||___/|_| |_||_|
                                                                   |___/
 ```
+
+# PowerShell compatibility
+
+EasyPwsh supports Windows PowerShell 5.1 and PowerShell 7.x on Windows.
+Scripts use UTF-8 with BOM; keep this encoding when editing them. Prediction
+and optional features are enabled according to engine, module and host capabilities.
+
+Run the compatibility suites in fresh processes:
+
+```powershell
+./tests/Invoke-CompatibilityTests.ps1
+# For a portable PowerShell 7 that is absent from PATH:
+./tests/Invoke-CompatibilityTests.ps1 -PowerShell7Path 'C:\tools\pwsh\pwsh.exe'
+```
+
+Both engines are required by default. Use `-AllowMissingEngine` for explicitly
+incomplete validation. Existing profiles are backed up before modification;
+for a BOM-less non-ASCII profile, specify its known encoding with
+`./easy-pwsh.ps1 -i -ProfileEncoding UTF8` (or `ANSI` / a code page name).
 
 # Project structure
 

@@ -13,7 +13,7 @@ function Convert-PowerShellToBatch {
         $batPath = [System.IO.Path]::ChangeExtension($Path, ".bat")
         $batContent = @"
 @echo off
-powershell -NoProfile -Command "[IO.File]::WriteAllText('$md5Hash.ps1', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedContent')))"
+powershell -NoProfile -Command "[IO.File]::WriteAllText('$md5Hash.ps1', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedContent')), [Text.UTF8Encoding]::new($true))"
 powershell -NoProfile -ExecutionPolicy Bypass -File $md5Hash.ps1
 del $md5Hash.ps1
 "@

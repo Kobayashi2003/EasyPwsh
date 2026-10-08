@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Initialize Scoop, and install Scoop apps.
 .NOTES
@@ -278,7 +278,7 @@ function global:scoop-install {
     }
 
     $lines.Insert($close, $entry)
-    Set-Content -LiteralPath $global:SCOOP_CATALOG_FILE -Value $lines -Encoding UTF8
+    [IO.File]::WriteAllLines($global:SCOOP_CATALOG_FILE, $lines, [Text.UTF8Encoding]::new($true))
 
     $global:SCOOP_CATALOG_OPTIONAL += @{ Bucket = $bucket; Category = $Category; Name = $name; Description = $note }
     Write-Host "Recorded $name in the catalog." -ForegroundColor Green
@@ -337,7 +337,7 @@ function global:scoop-uninstall {
         return
     }
 
-    Set-Content -LiteralPath $global:SCOOP_CATALOG_FILE -Value $kept -Encoding UTF8
+    [IO.File]::WriteAllLines($global:SCOOP_CATALOG_FILE, [string[]]$kept, [Text.UTF8Encoding]::new($true))
     $global:SCOOP_CATALOG_OPTIONAL = @($global:SCOOP_CATALOG_OPTIONAL | Where-Object { $_.Name -ne $App })
     Write-Host "Removed $App from the catalog." -ForegroundColor Green
 }

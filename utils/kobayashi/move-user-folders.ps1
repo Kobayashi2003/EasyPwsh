@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Relocates the current user's Windows shell folders (Desktop, Documents, Searches, ...) to another root
 .DESCRIPTION

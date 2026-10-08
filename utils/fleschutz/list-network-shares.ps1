@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists the local network shares
 .DESCRIPTION
@@ -16,7 +16,7 @@
 #>
 
 try {
-	Get-WmiObject win32_share | where {$_.name -NotLike "*$"}
+	Get-CimInstance win32_share | where {$_.name -NotLike "*$"}
 	exit 0 # success
 } catch {
 	"⚠️ Error in line $($_.InvocationInfo.ScriptLineNumber): $($Error[0])"

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Example / reference catalog of optional Scoop apps.
 .DESCRIPTION

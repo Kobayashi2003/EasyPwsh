@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Bootstraps EasyPwsh utils for remote, clone-free use.
 .DESCRIPTION
@@ -72,7 +72,7 @@ function global:Get-EzManifest {
 	$cache = Join-Path $global:EZ.CacheDir 'manifest.txt'
 	if (Test-Path $cache) {
 		$map = @{}
-		foreach ($line in Get-Content $cache) {
+		foreach ($line in Get-Content $cache -Encoding UTF8) {
 			$k, $v = $line -split '=', 2
 			if ($k) { $map[$k] = $v }
 		}
@@ -90,7 +90,7 @@ function global:Get-EzManifest {
 			Where-Object { $_.path -like 'utils/*/*.ps1' } |
 			ForEach-Object { $map[[IO.Path]::GetFileNameWithoutExtension($_.path)] = ($_.path -replace '^utils/', '') }
 	}
-	$map.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" } | Set-Content $cache
+	$map.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" } | Set-Content $cache -Encoding UTF8
 	return $map
 }
 
@@ -103,6 +103,11 @@ function global:Resolve-EzUtil([string]$Name) {
 		New-Item -ItemType Directory -Force -Path (Split-Path $file) | Out-Null
 		Invoke-RestMethod "$($global:EZ.RawBase)/utils/$rel" -OutFile $file
 	}
+    # Cached downloads can come from revisions written without a BOM.
+    $bytes = [IO.File]::ReadAllBytes($file)
+    if ($bytes.Length -lt 3 -or $bytes[0] -ne 0xEF -or $bytes[1] -ne 0xBB -or $bytes[2] -ne 0xBF) {
+        [IO.File]::WriteAllText($file, [IO.File]::ReadAllText($file, [Text.UTF8Encoding]::new($false, $true)), [Text.UTF8Encoding]::new($true))
+    }
 	return $file
 }
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Relocates installed WSL distribution(s) to a new root directory
 .DESCRIPTION

@@ -1,4 +1,4 @@
-# Static lookup tables — built once at load time instead of on every prompt render.
+﻿# Static lookup tables — built once at load time instead of on every prompt render.
 # All icons are single UTF-16 code-unit (BMP) glyphs on purpose: characters above
 # U+FFFF (most emoji) are surrogate pairs and get mangled into "??" when PSReadLine
 # re-renders the prompt via InvokePrompt() (e.g. after alt+r). Keep these < U+FFFF.

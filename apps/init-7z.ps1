@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Initialize 7-Zip helper functions
 .NOTES

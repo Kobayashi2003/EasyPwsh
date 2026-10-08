@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Initialize Claude Code statusline.
 .NOTES
@@ -12,7 +12,8 @@ if (-not (Get-Command 'claude' -ErrorAction SilentlyContinue)) {
 
 $claude_settings_file = Join-Path $env:USERPROFILE -ChildPath ".claude\settings.json"
 $statusline_script    = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "config\claude\statusline.ps1"
-$statusline_command   = "pwsh -NoLogo -NoProfile -File `"$statusline_script`""
+$statusline_shell     = Join-Path $PSHOME $(if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell.exe' } else { 'pwsh.exe' })
+$statusline_command   = "`"$statusline_shell`" -NoLogo -NoProfile -File `"$statusline_script`""
 
 if (Test-Path $claude_settings_file) {
     $settings = Get-Content $claude_settings_file -Raw | ConvertFrom-Json

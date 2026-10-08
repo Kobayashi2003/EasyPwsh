@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Runs a command with the proxy temporarily disabled, then restores the environment
 .DESCRIPTION

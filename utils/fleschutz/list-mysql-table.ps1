@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all tables of a MySQL database
 .DESCRIPTION

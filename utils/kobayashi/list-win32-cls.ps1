@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 	Lists all PowerShell win32 wmi classes.
 .DESCRIPTION

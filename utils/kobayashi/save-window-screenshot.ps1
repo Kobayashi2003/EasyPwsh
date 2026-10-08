@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Captures a screenshot of a window, the full screen, or a region
 .DESCRIPTION
