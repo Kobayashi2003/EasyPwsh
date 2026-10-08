@@ -23,5 +23,14 @@ if (-not (Test-Path $__zoxideCache) -or
     [IO.File]::WriteAllText($__zoxideCache, $hook, [Text.UTF8Encoding]::new($true))
 }
 . $__zoxideCache
-Set-Alias -Name cd -Value z -Option AllScope -Scope Global -Force
+if (Get-Command Set-FnmOnLoad -CommandType Function -ErrorAction SilentlyContinue) {
+    # fnm initializes before zoxide; keep both directory hooks active.
+    function global:__zoxide_cd_with_fnm {
+        z @args
+        if ($?) { Set-FnmOnLoad }
+    }
+    Set-Alias -Name cd -Value __zoxide_cd_with_fnm -Option AllScope -Scope Global -Force
+} else {
+    Set-Alias -Name cd -Value z -Option AllScope -Scope Global -Force
+}
 #endregion

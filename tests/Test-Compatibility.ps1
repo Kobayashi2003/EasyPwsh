@@ -310,6 +310,30 @@ public static class Utf8Emitter
 
     }
 
+    & {
+        # Exercise fnm session setup without requiring an installed Node manager.
+        $global:__EasyPwshFnmTestAvailable = $false
+        $global:__EasyPwshFnmTestEnvCalls = 0
+        $global:__EasyPwshFnmTestHookCalls = 0
+        function Get-Command {
+            [CmdletBinding()] param($Name, $CommandType)
+            if ($Name -eq 'fnm' -and $global:__EasyPwshFnmTestAvailable) { [pscustomobject]@{ Source = 'fixture-fnm.exe' } }
+        }
+        function Invoke-EasyPwshUtf8Command {
+            param($FilePath, $ArgumentList)
+            Assert ($FilePath -eq 'fixture-fnm.exe' -and ($ArgumentList -join ' ') -eq 'env --use-on-cd --shell powershell') 'fnm must request the PowerShell directory hook'
+            $global:__EasyPwshFnmTestEnvCalls++
+            '$global:__EasyPwshFnmTestHookCalls++'
+        }
+        & (Join-Path $root 'apps/init-fnm.ps1')
+        Assert ($global:__EasyPwshFnmTestEnvCalls -eq 0) 'Absent fnm must skip initialization'
+        $global:__EasyPwshFnmTestAvailable = $true
+        & (Join-Path $root 'apps/init-fnm.ps1')
+        & (Join-Path $root 'apps/init-fnm.ps1')
+        Assert ($global:__EasyPwshFnmTestEnvCalls -eq 2 -and $global:__EasyPwshFnmTestHookCalls -eq 2) 'Each fnm initialization must generate and evaluate a fresh environment'
+        Remove-Variable __EasyPwshFnmTestHookCalls,__EasyPwshFnmTestAvailable,__EasyPwshFnmTestEnvCalls -Scope Global
+    }
+
     & (Join-Path $root 'start/symlink.ps1')
     $linkTarget = Join-Path $sandbox 'target.txt'
     $linkPath = Join-Path $sandbox 'link.txt'
