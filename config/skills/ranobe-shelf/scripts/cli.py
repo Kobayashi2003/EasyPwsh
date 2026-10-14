@@ -642,6 +642,9 @@ def cmd_audit(a) -> int:
     #   放っておくと置き場が空にならず、しかも理由がどこにも出ない
     print("## 置き場に残っている、既に台帳にある中身の写し")
     known = {f.指紋: v.巻ID for v in vols.values() for f in v.ファイル}
+    # 指紋はサイズを含む。サイズが台帳に無ければ一致し得ないので、
+    # 大きな置き場の全冊を開いて読む前に stat だけで除外する。
+    known_sizes = {f.サイズ for v in vols.values() for f in v.ファイル}
     mine = {_norm_path(f.path) for v in vols.values() for f in v.ファイル}
     inbox = paths.get("inbox")
     stray = []
@@ -650,6 +653,8 @@ def cmd_audit(a) -> int:
             if not p.is_file() or p.suffix.lower() not in BOOK_EXT:
                 continue
             if _norm_path(str(p)) in mine:
+                continue
+            if p.stat().st_size not in known_sizes:
                 continue
             vid = known.get(L.fingerprint(p))
             if vid:

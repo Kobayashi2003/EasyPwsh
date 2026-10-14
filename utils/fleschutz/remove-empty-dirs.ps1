@@ -38,8 +38,7 @@ try {
 				'Last Modified' = $Folder.Object.LastWriteTime
 				Owner = (Get-Acl $Folder.Object.FullName).Owner
 			}
-			# Remove-Item -Path $Folder.Object.FullName -Force
-			Remove-Item -LiteralPath $Folder.Object.FullName -Force
+			Remove-Item $Folder.Object.FullName -Force
 		}
 	}
 	"✔️  Done."
