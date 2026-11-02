@@ -19,7 +19,7 @@ try {
 	if ($DirTree -eq "" ) { $DirTree = read-host "Enter the path to the directory tree" }
 
 	$Folders = @()
-	foreach ($Folder in (Get-ChildItem -path  "$DirTree" -Recurse | Where { $_.PSisContainer })) {
+	foreach ($Folder in (Get-ChildItem -LiteralPath "$DirTree" -Recurse -ErrorAction Stop | Where { $_.PSisContainer })) {
 		$Folders += New-Object PSObject -Property @{
 			Object = $Folder
 			Depth = ($Folder.FullName.Split("\")).Count
@@ -36,9 +36,9 @@ try {
 				Deleted = (Get-Date -Format "hh:mm:ss tt")
 				Created = $Folder.Object.CreationTime
 				'Last Modified' = $Folder.Object.LastWriteTime
-				Owner = (Get-Acl $Folder.Object.FullName).Owner
+				Owner = (Get-Acl -LiteralPath $Folder.Object.FullName -ErrorAction Stop).Owner
 			}
-			Remove-Item $Folder.Object.FullName -Force
+			Remove-Item -LiteralPath $Folder.Object.FullName -Force -ErrorAction Stop
 		}
 	}
 	"✔️  Done."

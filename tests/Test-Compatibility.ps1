@@ -5,6 +5,7 @@ param([string]$PSReadLineVersion, [switch]$ModuleOnly, [int]$ExpectedMajor, [swi
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $global:CURRENT_SCRIPT_DIRECTORY = $root
+$global:EASYPWSH_CACHE_DIR = Join-Path $root 'downloads\cache'
 # Load only function definitions; do not run initialization or request elevation.
 foreach ($helper in @(
     @{ Path = 'easy-pwsh.ps1'; Name = 'Set-EasyPwshProfileStartup' },
@@ -35,7 +36,7 @@ if ($StartupOnly) {
 
 if (-not $ModuleOnly) {
     $files = @(Get-ChildItem $root -Recurse -File -Filter *.ps1 |
-        Where-Object FullName -NotMatch '\\(\.git|downloads)\\')
+        Where-Object FullName -NotMatch '\\(\.git|downloads|\.venv)\\')
     foreach ($file in $files) {
         $bytes = [IO.File]::ReadAllBytes($file.FullName)
         Assert ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) "UTF-8 BOM missing: $file"

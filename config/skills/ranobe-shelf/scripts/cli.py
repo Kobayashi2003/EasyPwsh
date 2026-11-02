@@ -1,6 +1,6 @@
 """ラノベの棚を整える道具。**確定した操作だけ。判断は一つも持たない**。
 
-    python cli.py <命令> [引数]
+    uv run cli.py <命令> [引数]
 
 どの本か・どの作品か・種類は何か を決めるのは呼ぶ側（AI）。
 道具がするのは、材料を出すこと、決まったことを記録すること、
@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import io
 import json
 import re
 import sys
@@ -19,28 +21,29 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except Exception:
     pass
 
-import epub as E          # noqa: E402
-import ledger as L        # noqa: E402
-import mori as M          # noqa: E402
-import paths              # noqa: E402
-import place as P         # noqa: E402
-import same as SM         # noqa: E402
-import sources as S       # noqa: E402
+import epub as E  # noqa: E402
+import ledger as L  # noqa: E402
+import mori as M  # noqa: E402
+import paths  # noqa: E402
+import place as P  # noqa: E402
+import same as SM  # noqa: E402
+import sources as S  # noqa: E402
 
-BOOK_EXT = P.BOOK_EXT      # ★ 一覧は place に一つだけ置く
+BOOK_EXT = P.BOOK_EXT  # ★ 一覧は place に一つだけ置く
 
 
 def _t(s, n: int) -> str:
     s = (s or "").replace("\n", " ")
-    return s if len(s) <= n else s[:n - 1] + "…"
+    return s if len(s) <= n else s[: n - 1] + "…"
 
 
 def _norm_path(p: str) -> str:
-    return str(Path(p)).lower()
+    return str(Path(p).resolve()).lower()
 
 
 def _need_paths() -> bool:
@@ -67,6 +70,7 @@ def cmd_config(a) -> int:
 
 # ---------------------------------------------------------------- 材料
 
+
 def _ask_word(info: dict) -> str:
     t = (info.get("opf") or {}).get("題名") or ""
     if not t.strip():
@@ -76,16 +80,19 @@ def _ask_word(info: dict) -> str:
 
 
 def _mori_line(r: dict, mark: str) -> str:
-    return (f"   [{mark}] {r.get('label', '-')} {r.get('date', '-')}"
-            f" 「{_t(r.get('title', ''), 40)}」"
-            f" 著:{r.get('author') or '-'} 絵:{r.get('artist') or '-'}"
-            f" {r.get('isbn') or ('電子専売' if r.get('digital_only') else '-')}")
+    return (
+        f"   [{mark}] {r.get('label', '-')} {r.get('date', '-')}"
+        f" 「{_t(r.get('title', ''), 40)}」"
+        f" 著:{r.get('author') or '-'} 絵:{r.get('artist') or '-'}"
+        f" {r.get('isbn') or ('電子専売' if r.get('digital_only') else '-')}"
+    )
 
 
 def _survey_write(fp: str, rec: dict) -> None:
     L.survey_dir().mkdir(parents=True, exist_ok=True)
     (L.survey_dir() / f"{fp}.json").write_text(
-        json.dumps(rec, ensure_ascii=False, indent=1), encoding="utf-8")
+        json.dumps(rec, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
 
 
 def cmd_materials(a) -> int:
@@ -99,8 +106,9 @@ def cmd_materials(a) -> int:
 
     done = L.settled_fingerprints()
     pend = _load_pend()
-    files = sorted(p for p in root.rglob("*")
-                   if p.is_file() and p.suffix.lower() in BOOK_EXT)
+    files = sorted(
+        p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in BOOK_EXT
+    )
     todo, n_done = [], 0
     for p in files:
         fp = L.fingerprint(p)
@@ -112,8 +120,10 @@ def cmd_materials(a) -> int:
         if len(todo) < a.count:
             todo.append((fp, p))
 
-    print(f"# 材料  {len(todo)} 件"
-          f"（{root} に {len(files)} 件、台帳済み {n_done}、未決 {len(pend)}）\n")
+    print(
+        f"# 材料  {len(todo)} 件"
+        f"（{root} に {len(files)} 件、台帳済み {n_done}、未決 {len(pend)}）\n"
+    )
     if not todo:
         print("整理していない実体はもう無い")
         return 0
@@ -128,30 +138,46 @@ def cmd_materials(a) -> int:
         opf = info.get("opf") or {}
         word = _ask_word(info)
 
-        rec = {"指紋": fp, "見た時": L.now(),
-               "実体": {"path": str(p), "サイズ": p.stat().st_size},
-               "自身": info, "問い": []}
+        rec = {
+            "指紋": fp,
+            "見た時": L.now(),
+            "実体": {"path": str(p), "サイズ": p.stat().st_size},
+            "自身": info,
+            "問い": [],
+        }
 
         print(f"── {fp}  {_t(p.name, 66)}")
         if info["読めない理由"]:
             print(f"   ★ 中身が読めない: {info['読めない理由']}")
         else:
-            got = [x for x in (
-                ok["レーベル"],
-                f"紙{ok['紙の日付']}" if ok["紙の日付"] else "",
-                f"電子{ok['電子の日付']}" if ok["電子の日付"] else "",
-                f"ISBN{ok['ISBN']}" if ok["ISBN"] else "") if x]
-            print(f"   {b['字数']:,}字 画像{b['画像']} 頁{b['頁']}  奥付: "
-                  + (" ".join(got) if got else
-                     ("見つけたが何も取れず" if ok["読めた"] else "見つからず")))
+            got = [
+                x
+                for x in (
+                    ok["レーベル"],
+                    f"紙{ok['紙の日付']}" if ok["紙の日付"] else "",
+                    f"電子{ok['電子の日付']}" if ok["電子の日付"] else "",
+                    f"ISBN{ok['ISBN']}" if ok["ISBN"] else "",
+                )
+                if x
+            ]
+            print(
+                f"   {b['字数']:,}字 画像{b['画像']} 頁{b['頁']}  奥付: "
+                + (
+                    " ".join(got)
+                    if got
+                    else ("見つけたが何も取れず" if ok["読めた"] else "見つからず")
+                )
+            )
             # ★ その本が自分を何と呼んでいるか。ファイル名は一冊ずれている
             #   ことがあるので（壊れ方 1-9）、判断のときは必ずここを見る
             if info.get("柱"):
                 print(f"   柱 「{_t(info['柱'], 62)}」")
-            print(f"   OPF「{_t(opf.get('題名', ''), 54)}」"
-                  f" 著者={'、'.join(opf.get('著者') or []) or '-'}"
-                  f" 日付={opf.get('日付') or '-'}"
-                  f" 出版社={opf.get('出版社') or '-'}")
+            print(
+                f"   OPF「{_t(opf.get('題名', ''), 54)}」"
+                f" 著者={'、'.join(opf.get('著者') or []) or '-'}"
+                f" 日付={opf.get('日付') or '-'}"
+                f" 出版社={opf.get('出版社') or '-'}"
+            )
 
         # ① 手元の索引  ② 網の杜  ③ 他の二源
         isbn = ok.get("ISBN", "")
@@ -164,17 +190,24 @@ def cmd_materials(a) -> int:
         else:
             res = M.find(word, index)
             # ★ 一致と示唆を混ぜない。混ぜると後から読む側が示唆を答えと読む
-            rec["問い"].append({
-                "源": "mori", "語": word,
-                "経路": ("index-exact:" + res["経路"]) if res["exact"]
-                        else ("index-hint" if res["hint"] else "index-none"),
-                "答え": res["exact"], "示唆": res["hint"]})
+            rec["問い"].append(
+                {
+                    "源": "mori",
+                    "語": word,
+                    "経路": ("index-exact:" + res["経路"])
+                    if res["exact"]
+                    else ("index-hint" if res["hint"] else "index-none"),
+                    "答え": res["exact"],
+                    "示唆": res["hint"],
+                }
+            )
             if res["exact"]:
                 print("   杜（題名 完全一致）")
                 for r in res["exact"]:
                     print(_mori_line(r, "杜"))
-                isbn = isbn or next((r["isbn"] for r in res["exact"]
-                                     if r.get("isbn")), "")
+                isbn = isbn or next(
+                    (r["isbn"] for r in res["exact"] if r.get("isbn")), ""
+                )
             elif res["hint"]:
                 print("   杜（**示唆のみ。断定に使わない**）")
                 for r in res["hint"][:5]:
@@ -183,27 +216,34 @@ def cmd_materials(a) -> int:
                 print("   杜: 索引に無し")
 
             # 奥付の レーベル×発売月 で候補を小さくする（選ぶのはあなた）
-            cands = M.by_label_month(ok.get("レーベル", ""),
-                                     ok.get("紙の日付", ""), index)
+            cands = M.by_label_month(
+                ok.get("レーベル", ""), ok.get("紙の日付", ""), index
+            )
             if cands and not res["exact"]:
-                print(f"   杜（{ok['レーベル']} の {ok['紙の日付'][:4]} 月"
-                      f" — 候補 {len(cands)} 件）")
+                print(
+                    f"   杜（{ok['レーベル']} の {ok['紙の日付'][:4]} 月"
+                    f" — 候補 {len(cands)} 件）"
+                )
                 for r in cands[:12]:
                     print(_mori_line(r, "候補"))
-                rec["問い"].append({"源": "mori", "経路": "label+month",
-                                    "答え": cands})
+                rec["問い"].append({"源": "mori", "経路": "label+month", "答え": cands})
 
         # ISBN が手に入ったら RanobeDB で作品と巻号まで確定させる
         if isbn and not a.no_isbn:
             d = S.by_isbn(isbn)
-            rec["問い"].append({"源": "ranobedb", "経路": "isbn",
-                                "isbn": isbn, "答え": d})
+            rec["問い"].append(
+                {"源": "ranobedb", "経路": "isbn", "isbn": isbn, "答え": d}
+            )
             if d:
-                print(f"   RDB（ISBN 確定）作品={d['作品']} 第{d['順']}巻"
-                      f" 「{_t(d['題名'], 34)}」")
-                print(f"      著:{d['著者'] or '-'} 絵:{d['絵師'] or '-'}"
-                      f" 紙{d['紙の発売日'] or '-'} 電子{d['電子の発売日'] or '-'}"
-                      f"  作品「{_t(d['作品題名'], 26)}」")
+                print(
+                    f"   RDB（ISBN 確定）作品={d['作品']} 第{d['順']}巻"
+                    f" 「{_t(d['題名'], 34)}」"
+                )
+                print(
+                    f"      著:{d['著者'] or '-'} 絵:{d['絵師'] or '-'}"
+                    f" 紙{d['紙の発売日'] or '-'} 電子{d['電子の発売日'] or '-'}"
+                    f"  作品「{_t(d['作品題名'], 26)}」"
+                )
             else:
                 print(f"   RDB: ISBN {isbn} を知らない")
 
@@ -211,7 +251,7 @@ def cmd_materials(a) -> int:
             got = S.ask(word)
             rec["問い"].append({"源": "rdb/bw", "語": word, "答え": got})
             for src in S.NAMES:
-                for ans in (got.get(src) or []):
+                for ans in got.get(src) or []:
                     print(f"   [{src}] #{ans['id']}「{_t(ans['題名'], 40)}」")
         _survey_write(fp, rec)
         print()
@@ -231,20 +271,25 @@ def cmd_ask(a) -> int:
     print(f"# 「{a.word}」に問うた\n")
     n = 0
     for src in S.NAMES:
-        for ans in (got.get(src) or []):
+        for ans in got.get(src) or []:
             n += 1
-            print(f"[{src}] #{ans['id']}「{ans['題名']}」"
-                  f" 著者={ans.get('著者') or '-'} ﾚｰﾍﾞﾙ={ans.get('レーベル') or '-'}")
+            print(
+                f"[{src}] #{ans['id']}「{ans['題名']}」"
+                f" 著者={ans.get('著者') or '-'} ﾚｰﾍﾞﾙ={ans.get('レーベル') or '-'}"
+            )
             for v in (ans.get("巻") or [])[:10]:
-                print(f"      {v.get('順', '')} 「{_t(v.get('題名', ''), 34)}」"
-                      f" {v.get('発売日', '')}"
-                      f"{'' if v.get('型') in (None, 'main') else '(' + v['型'] + ')'}")
+                print(
+                    f"      {v.get('順', '')} 「{_t(v.get('題名', ''), 34)}」"
+                    f" {v.get('発売日', '')}"
+                    f"{'' if v.get('型') in (None, 'main') else '(' + v['型'] + ')'}"
+                )
     if not n:
         print("どの源も答えなかった")
     return 0
 
 
 # ---------------------------------------------------------------- 記録
+
 
 def cmd_record(a) -> int:
     if not _need_paths():
@@ -280,26 +325,47 @@ def cmd_record(a) -> int:
             print("★ 自分自身へは統合できない")
             return 1
         keep = vols[a.retire_into]
-        left = ({f.指紋 for f in vols[a.id].ファイル}
-                - {f.指紋 for f in keep.ファイル})
+        left = {f.指紋 for f in vols[a.id].ファイル} - {f.指紋 for f in keep.ファイル}
         # ★ --leave は「同じ巻を既に持っているので、こちらは**採らない**」。
         #   実体は今在る場所（置き場）に置いたままにする。棚にも隔離にも動かさない。
         #   併せて pend に出しておかないと、次の周でまた材料に上がってくる
         if left and a.leave:
             left = set()
         if left:
-            print(f"★ {a.id} の実体 {len(left)} 個がまだ {a.retire_into} に"
-                  f"付いていない。先に record --id {a.retire_into} で付け替える")
+            print(
+                f"★ {a.id} の実体 {len(left)} 個がまだ {a.retire_into} に"
+                f"付いていない。先に record --id {a.retire_into} で付け替える"
+            )
             return 1
         d = L.decision(a.by, a.why)
         d["統合先"] = a.retire_into
         old = vols[a.id]
-        L.append_volumes([L.Vol(a.id, old.題名, old.レーベル, old.著者, old.絵師,
-                                old.発売日, old.ISBN, old.種類, old.作品,
-                                old.巻号, [], d)])
-        print(f"{a.id} を {a.retire_into} に統合した"
-              + ("（実体は置き場に置いたまま）" if a.leave
-                 else f"（実体は {a.retire_into} 側）"))
+        L.append_volumes(
+            [
+                L.Vol(
+                    a.id,
+                    old.題名,
+                    old.レーベル,
+                    old.著者,
+                    old.絵師,
+                    old.発売日,
+                    old.ISBN,
+                    old.種類,
+                    old.作品,
+                    old.巻号,
+                    [],
+                    d,
+                )
+            ]
+        )
+        print(
+            f"{a.id} を {a.retire_into} に統合した"
+            + (
+                "（実体は置き場に置いたまま）"
+                if a.leave
+                else f"（実体は {a.retire_into} 側）"
+            )
+        )
         return 0
 
     # ★ 改めるときは既に付いている実体を引き継ぐ。作り直すと前の実体が
@@ -312,24 +378,30 @@ def cmd_record(a) -> int:
         p = Path(a.path)
         if p.exists():
             st = p.stat()
-            new = L.FileRef(a.fp, str(p), st.st_size,
-                            datetime.fromtimestamp(st.st_mtime)
-                            .isoformat(timespec="seconds"), True)
+            new = L.FileRef(
+                a.fp,
+                str(p),
+                st.st_size,
+                datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+                True,
+            )
             # ★ 同じ指紋のものと、**同じ path のもの**を落とす。
             #   一つの path は一つの実体なので、そこを指す古い行は今の行に
             #   置き換わる（指紋を書き間違えて入れ直すときに要る）
             here = _norm_path(str(p))
-            files = [f for f in files
-                     if f.指紋 != a.fp and _norm_path(f.path) != here]
+            files = [f for f in files if f.指紋 != a.fp and _norm_path(f.path) != here]
             if files:
-                notes.append(f"★ 同じ巻に実体が {len(files) + 1} 個。"
-                             f"採用は今指した方。残りは隔離へ移る")
-            files = [L.FileRef(f.指紋, f.path, f.サイズ, f.更新, False)
-                     for f in files] + [new]
+                notes.append(
+                    f"★ 同じ巻に実体が {len(files) + 1} 個。"
+                    f"採用は今指した方。残りは隔離へ移る"
+                )
+            files = [
+                L.FileRef(f.指紋, f.path, f.サイズ, f.更新, False) for f in files
+            ] + [new]
         else:
             notes.append(f"★ {p} が見つからない。ファイル無しで記録した")
 
-    d = L.decision(a.by, a.why)
+    d = {**(vols[a.id].判断 if a.id else {}), **L.decision(a.by, a.why)}
     # ★ 承知は**引き継ぐ**。`--id` は行を丸ごと書き直すので、後から作品を
     #   足しただけで承知が落ち、下げたはずの指摘が戻ってくる（実際に戻った）。
     #   承知は「源の方が誤っている」という源についての見立てなので、
@@ -346,14 +418,30 @@ def cmd_record(a) -> int:
         d["棚外"] = vols[a.id].判断["棚外"]
     if a.off_shelf:
         d["棚外"] = a.off_shelf
-    v = L.Vol(vid, a.title, a.label or "", a.author or "", a.artist or "",
-              a.date or "", re.sub(r"\D", "", a.isbn or ""), a.kind,
-              a.work or "", a.num, files, d)
+    if a.on_shelf:
+        d.pop("棚外", None)
+        if d.get("未決"):
+            d["未決"] = {**d["未決"], "解決": L.now()}
+    v = L.Vol(
+        vid,
+        a.title,
+        a.label or "",
+        a.author or "",
+        a.artist or "",
+        a.date or "",
+        re.sub(r"\D", "", a.isbn or ""),
+        a.kind,
+        a.work or "",
+        a.num,
+        files,
+        d,
+    )
     L.append_volumes([v])
 
     if a.isbn:
-        same = [x for x in vols.values()
-                if x.ISBN and x.ISBN == v.ISBN and x.巻ID != vid]
+        same = [
+            x for x in vols.values() if x.ISBN and x.ISBN == v.ISBN and x.巻ID != vid
+        ]
         if same:
             notes.append(f"★ 同じ ISBN が {'、'.join(x.巻ID for x in same)} にもある")
 
@@ -372,14 +460,9 @@ def cmd_work(a) -> int:
     w = works.get(a.id) or L.Work(a.id)
     if a.name is not None:
         w.表示名 = a.name
-    if a.done is not None:
-        w.完結 = a.done
-    if a.last:
-        w.最終巻 = a.last
     w.判断 = L.decision(a.by, a.why)
     L.append_works([w])
-    print(f"{w.作品}  状態={L.state_of(w)}  完結={w.完結}  最終巻={w.最終巻 or '-'}"
-          f"  「{w.表示名}」")
+    print(f"{w.作品}  「{w.表示名}」")
     return 0
 
 
@@ -388,7 +471,7 @@ def _load_pend() -> dict:
     if not p.exists():
         return {}
     out = {}
-    for line in p.read_text(encoding="utf-8").splitlines():
+    for line in p.read_text(encoding="utf-8").split("\n"):
         if line.strip():
             d = json.loads(line)
             out[d["指紋"]] = d
@@ -399,20 +482,92 @@ def cmd_pend(a) -> int:
     if not _need_paths():
         return 1
     L.ensure_dirs()
+    src = Path(a.path).resolve()
+    reason = Path(a.reason_dir).resolve()
+    if not a.why.strip():
+        print("★ 未決には具体的な理由が要る")
+        return 1
+    if not src.is_file() or src.suffix.lower() not in BOOK_EXT:
+        print("★ 未決の書籍実体が見つからない")
+        return 1
+    if not any(
+        src.is_relative_to(root.resolve()) for root in (paths.inbox(), paths.shelf())
+    ):
+        print("★ 元の書籍は棚か置き場の中を指定する")
+        return 1
+    if reason == paths.inbox().resolve() or not reason.is_relative_to(
+        paths.inbox().resolve()
+    ):
+        print("★ 置き場内の具体的な理由フォルダを指定する")
+        return 1
+    if L.fingerprint(src) != a.fp:
+        print("★ 指紋が現在の実体と一致しない")
+        return 1
+    dst = reason / src.name
+    before = src.stat()
+    with src.open("rb") as f:
+        digest = hashlib.file_digest(f, "sha256").hexdigest()
+    undo = None
+    if src != dst:
+        plan = P.save_plan([P.Op(P.MOVE, str(src), str(dst), a.why)], [])
+        code, undo, messages = P.apply(plan)
+        if code:
+            print("\n".join(messages))
+            return code
+    with dst.open("rb") as f:
+        unchanged = hashlib.file_digest(f, "sha256").hexdigest() == digest
+    after = dst.stat()
+    if not unchanged or (after.st_size, after.st_mtime_ns) != (
+        before.st_size,
+        before.st_mtime_ns,
+    ):
+        print(f"★ 保全の確認が通らない。取消: {undo}")
+        return 1
+    rows = []
+    for v in L.load_volumes().values():
+        if v.current() and _norm_path(v.current().path) == _norm_path(str(dst)):
+            v.判断 = {
+                **v.判断,
+                "棚外": a.why,
+                "未決": {
+                    "理由": a.why,
+                    "元": str(src),
+                    "理由フォルダ": str(reason),
+                    "時": L.now(),
+                },
+            }
+            rows.append(v)
+    L.append_volumes(rows)
     with L.pending_path().open("a", encoding="utf-8", newline="\n") as f:
-        f.write(json.dumps({"指紋": a.fp, "path": a.path or "",
-                            "why": a.why, "時": L.now()},
-                           ensure_ascii=False) + "\n")
-    print(f"未決に出した: {a.fp}  {a.why}")
+        f.write(
+            json.dumps(
+                {
+                    "指紋": a.fp,
+                    "path": str(dst),
+                    "why": a.why,
+                    "時": L.now(),
+                    "理由フォルダ": str(reason),
+                    "元": str(src),
+                    "sha256": digest,
+                    "undo": str(undo) if undo else "",
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    print(f"理由別に保管した: {dst}\n未決: {a.fp}  {a.why}")
+    if undo:
+        print(f"取消: {undo}")
     return 0
 
 
 # ---------------------------------------------------------------- 検め
 
+
 def _oku_date(fp: str) -> str:
     try:
         d = json.loads((L.survey_dir() / f"{fp}.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return ""
     return ((d.get("自身", {}).get("奥付") or {}).get("紙の日付") or "").strip()
 
@@ -435,13 +590,13 @@ def cmd_audit(a) -> int:
     works = L.load_works()
     found = 0
 
-    print("## 同じ名前になる二冊（平らな棚での唯一の構造的破綻）")
+    print("## 同じ文庫で同じ配置先になる巻")
     names = {}
     for v in vols.values():
         cur = v.current()
         if cur is None:
             continue
-        n = P.file_name(v, Path(cur.path).suffix).lower()
+        n = str(P.shelf_path(v, Path(cur.path).suffix)).lower()
         names.setdefault(n, []).append(v.巻ID)
     dup = {k: ids for k, ids in names.items() if len(ids) > 1}
     for k, ids in list(dup.items())[:20]:
@@ -461,8 +616,10 @@ def cmd_audit(a) -> int:
                 miss[k].append(v.巻ID)
     for k, ids in miss.items():
         if ids:
-            print(f"   {k:<6} {len(ids):>4} 件   {'、'.join(ids[:6])}"
-                  f"{' …' if len(ids) > 6 else ''}")
+            print(
+                f"   {k:<6} {len(ids):>4} 件   {'、'.join(ids[:6])}"
+                f"{' …' if len(ids) > 6 else ''}"
+            )
             found += len(ids)
     if not any(miss.values()):
         print("   無し")
@@ -471,10 +628,14 @@ def cmd_audit(a) -> int:
     # 杜のレーベル欄には判型が入っている行がある（実測-26、索引 981 件）。
     # 埋まってはいるので上の「欠けているもの」には出ない。だが `[B6判]` は
     # 棚で何もまとめないので、奥付か RanobeDB から採り直す
-    fmt = [v.巻ID for v in vols.values()
-           if v.種類 != "其他" and M.is_format(v.レーベル)]
-    print(f"   {len(fmt)} 件   {'、'.join(fmt[:6])}{' …' if len(fmt) > 6 else ''}"
-          if fmt else "   無し")
+    fmt = [
+        v.巻ID for v in vols.values() if v.種類 != "其他" and M.is_format(v.レーベル)
+    ]
+    print(
+        f"   {len(fmt)} 件   {'、'.join(fmt[:6])}{' …' if len(fmt) > 6 else ''}"
+        if fmt
+        else "   無し"
+    )
     found += len(fmt)
 
     print("## 奥付が印刷した発売日と台帳の発売日が離れているもの")
@@ -494,14 +655,18 @@ def cmd_audit(a) -> int:
             far.append((g, v, got))
     # ★ 鍵を指す。指さないと、月数が同じときに Vol どうしを比べて落ちる
     far.sort(key=lambda x: -x[0])
-    for g, v, got in far[:20 if a.verbose else 6]:
-        print(f"   {v.巻ID}  奥付 {got} / 台帳 {v.発売日}（{g} ヶ月）"
-              f"  「{_t(v.題名, 40)}」")
+    for g, v, got in far[: 20 if a.verbose else 6]:
+        print(
+            f"   {v.巻ID}  奥付 {got} / 台帳 {v.発売日}（{g} ヶ月）"
+            f"  「{_t(v.題名, 40)}」"
+        )
     if not far:
         print("   無し")
     else:
-        print("   ★ 奥付は本の中に印刷されている。**ファイル名より強い。**"
-              "本文の柱も見て確かめること")
+        print(
+            "   ★ 奥付は本の中に印刷されている。**ファイル名より強い。**"
+            "本文の柱も見て確かめること"
+        )
     found += len(far)
 
     print("## 同じ ISBN が二つの巻に")
@@ -526,7 +691,7 @@ def cmd_audit(a) -> int:
             continue
         byn.setdefault((v.作品, v.巻号), []).append(v.巻ID)
     d2 = {k: x for k, x in byn.items() if len(x) > 1}
-    for (w, num), ids in list(d2.items())[:20 if a.verbose else 8]:
+    for (w, num), ids in list(d2.items())[: 20 if a.verbose else 8]:
         print(f"   {w} 第{num:g}巻  →  {'、'.join(sorted(ids))}")
     print("   無し" if not d2 else "")
     found += len(d2)
@@ -537,20 +702,22 @@ def cmd_audit(a) -> int:
         for f in v.ファイル:
             if not Path(f.path).exists():
                 gone.append((v.巻ID, f.path, f.採用))
-    for vid, path, adopted in (gone[:20] if a.verbose else gone[:5]):
+    for vid, path, adopted in gone[:20] if a.verbose else gone[:5]:
         print(f"   {vid}{'（採用）' if adopted else '（控え）'}  {_t(path, 62)}")
     if not gone:
         print("   無し")
     else:
         if len(gone) > (20 if a.verbose else 5):
             print(f"   … 他 {len(gone) - (20 if a.verbose else 5)} 件")
-        print("   ★ 台帳は持っていると言っているが、そこに無い。"
-              "動かしたなら record --id で path を直すこと")
+        print(
+            "   ★ 台帳は持っていると言っているが、そこに無い。"
+            "動かしたなら record --id で path を直すこと"
+        )
     found += len(gone)
 
     print("## 他の巻へ統合した巻（実体を持たない）")
     # 追記のみの台帳なので行は消えない。畳んだ巻がどれかは、ここでしか見えない
-    for v in (merged[:20] if a.verbose else merged[:5]):
+    for v in merged[:20] if a.verbose else merged[:5]:
         print(f"   {v.巻ID} → {v.判断['統合先']}  「{_t(v.題名, 44)}」")
     if not merged:
         print("   無し")
@@ -558,8 +725,9 @@ def cmd_audit(a) -> int:
         print(f"   … 他 {len(merged) - (20 if a.verbose else 5)} 件")
 
     print("## 実体を一つも持たない巻（統合でもないのに）")
-    empty = [v.巻ID for v in vols.values()
-             if not v.ファイル and not v.判断.get("統合先")]
+    empty = [
+        v.巻ID for v in vols.values() if not v.ファイル and not v.判断.get("統合先")
+    ]
     print(f"   {len(empty)} 件   {'、'.join(empty[:6])}" if empty else "   無し")
     found += len(empty)
 
@@ -582,10 +750,11 @@ def cmd_audit(a) -> int:
     for sp in L.survey_dir().glob("*.json"):
         try:
             sd = json.loads(sp.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except OSError, ValueError:
             continue
-        opf_of[sd.get("指紋", "")] = (sd.get("自身", {}).get("opf")
-                                      or {}).get("題名") or ""
+        opf_of[sd.get("指紋", "")] = (sd.get("自身", {}).get("opf") or {}).get(
+            "題名"
+        ) or ""
     odd, blind = [], 0
     for v in vols.values():
         cur = v.current()
@@ -600,28 +769,32 @@ def cmd_audit(a) -> int:
         want, got = M.norm(mm.group(1)), M.norm(v.題名.split(" 特典 ")[0])
         if not (want in got or got in want):
             odd.append((v.巻ID, mm.group(1), v.題名.split(" 特典 ")[0]))
-    for vid, want, got in (odd[:20] if a.verbose else odd[:5]):
+    for vid, want, got in odd[:20] if a.verbose else odd[:5]:
         print(f"   {vid}  OPF『{_t(want, 40)}』 / 台帳「{_t(got, 40)}」")
     if not odd:
-        print(f"   無し{f'（OPF に『』が無く確かめられないもの {blind} 件）' if blind else ''}")
+        print(
+            f"   無し{f'（OPF に『』が無く確かめられないもの {blind} 件）' if blind else ''}"
+        )
     found += len(odd)
 
     print("## 棚に置かないと決めた巻（実体は置き場に在る）")
     off = [v for v in vols.values() if v.判断.get("棚外")]
-    for v in (off[:20] if a.verbose else off[:5]):
+    for v in off[:20] if a.verbose else off[:5]:
         print(f"   {v.巻ID}  「{_t(v.題名, 44)}」  {_t(v.判断['棚外'], 40)}")
     if not off:
         print("   無し")
     else:
         if len(off) > (20 if a.verbose else 5):
             print(f"   … 他 {len(off) - (20 if a.verbose else 5)} 件")
-        print("   ★ **持っているが棚に並べていない。** 台帳の行は残してあるので、"
-              "棚に戻すなら record --id --why で棚外を書き直す")
+        print(
+            "   ★ **持っているが棚に並べていない。** 台帳の行は残してあるので、"
+            "棚に戻すなら record --id --why で棚外を書き直す"
+        )
     found += len(off)
 
     print("## 小説でないとして退けたもの（其他）")
     others = [v for v in vols.values() if v.種類 == "其他"]
-    for v in (others[:20] if a.verbose else others[:5]):
+    for v in others[:20] if a.verbose else others[:5]:
         print(f"   {v.巻ID}  「{_t(v.題名, 52)}」")
     if not others:
         print("   無し")
@@ -630,13 +803,6 @@ def cmd_audit(a) -> int:
             print(f"   … 他 {len(others) - (20 if a.verbose else 5)} 件")
         print("   ★ 其他 は棚から外れる。**一冊でも間違えると黙って蔵書から消える**")
     found += len(others)
-
-    print("## 作品を持たない巻（状態が 4. 未分類 に落ちる）")
-    # 承知は「どちらの源も持っていないと見た上でこうしている」
-    nw = [v for v in vols.values()
-          if not v.作品 and v.種類 != "其他" and not v.判断.get("承知")]
-    print(f"   {len(nw)} 件" if nw else "   無し")
-    found += len(nw)
 
     # ★ 中身が同じ写しは指紋で弾かれるので materials に二度と出てこない。
     #   放っておくと置き場が空にならず、しかも理由がどこにも出ない
@@ -659,7 +825,7 @@ def cmd_audit(a) -> int:
             vid = known.get(L.fingerprint(p))
             if vid:
                 stray.append((vid, p))
-    for vid, p in (stray[:20] if a.verbose else stray[:5]):
+    for vid, p in stray[:20] if a.verbose else stray[:5]:
         print(f"   {vid} と同じ中身  {_t(p.name, 52)}")
     if not stray:
         print("   無し")
@@ -675,6 +841,7 @@ def cmd_audit(a) -> int:
 
 # ---------------------------------------------------------------- 配置
 
+
 def cmd_plan(a) -> int:
     if not _need_paths():
         return 1
@@ -685,10 +852,12 @@ def cmd_plan(a) -> int:
     for o in ops:
         kinds[o.種類] = kinds.get(o.種類, 0) + 1
     print("   " + "  ".join(f"{k} {n}" for k, n in sorted(kinds.items())))
-    for o in ops[:a.show]:
+    for o in ops[: a.show]:
         dst = Path(o.先)
-        print(f"   {o.種類}  {_t(Path(o.元).name, 30)}"
-              f"  →  {_t(dst.parent.name + '/' + dst.name, 66)}")
+        print(
+            f"   {o.種類}  {_t(Path(o.元).name, 30)}"
+            f"  →  {_t(dst.parent.name + '/' + dst.name, 66)}"
+        )
     if stuck:
         print(f"★ 置けなかった {len(stuck)} 件:")
         for x in stuck[:10]:
@@ -722,24 +891,6 @@ def cmd_apply(a) -> int:
         print(m)
     print(f"取消は {up}" if up else "（動いていないので取消はありません）")
     return 0
-
-
-# record / pend に渡す既定値。**呼び出し側で書き漏らしても既定が効く**ように、
-# ここに一覧を置く（argparse の既定と同じ形にしておく）
-_ARG_DEFAULT = dict(fp=None, path=None, title=None, label=None, author=None,
-                    artist=None, date=None, isbn=None, kind="本篇", work=None,
-                    num=None, id=None, leave=False, only=False, noted=False,
-                    retire_into=None, off_shelf=None, by="agent", why="")
-
-
-def _run(fn, **kw) -> int:
-    """既にある cmd_* を、引数を組み立てて呼ぶ。
-
-    ★ 台帳に書く道は **cmd_record 一つだけ**にしておく。ここで独自に
-      L.append_volumes を呼ぶと、実体の引き継ぎ・承知の伝搬・ID の採り方が
-      二か所に分かれ、片方だけ直る（記録/1-壊れ方.md 五章）。
-    """
-    return fn(argparse.Namespace(**{**_ARG_DEFAULT, **kw}))
 
 
 def _unsettled() -> list:
@@ -779,8 +930,7 @@ def _mori_answer(d: dict):
 def cmd_dup(a) -> int:
     """置き場の実体が**既に棚に在る巻**かどうかを突き合わせる。
 
-    同じ巻なら規則 7-4 で採否を決める。棚を残すなら実体は**置き場に
-    置いたまま**（未決に出すので次の周では材料に上がらない）。
+    一致した候補を表示する。採否と品質の判断、台帳の変更は行わない。
     """
     if not _need_paths():
         return 1
@@ -803,46 +953,13 @@ def cmd_dup(a) -> int:
             continue
         src = Path(d["実体"]["path"])
         size = src.stat().st_size
-        # ★ 採否はここで**一度だけ**決めて持ち回る。あとから `r in take` と
-        #   引き直していたが、それは比べ方が二か所に分かれるということで、
-        #   しかも辞書を含む組の等値比較に頼っていた（五章）
-        rows.append((d, old, how, src, size, cur,
-                     SM.better(src, size, cur.path, cur.サイズ)))
+        rows.append((d, old, how, src, size, cur))
 
-    n_swap = sum(1 for r in rows if r[6])
-    print(f"# 既に棚に在る巻 {len(rows)} 件"
-          f"（棚を残す {len(rows) - n_swap} / 置き場の方が良い {n_swap}）\n")
-    for d, old, how, src, size, cur, swap in rows[:a.show]:
-        mark = "入れ替え" if swap else "棚を残す"
-        print(f"  {mark}  {old.巻ID}（{how}）  棚 {cur.サイズ:>11,} / こちら {size:>11,}")
-        print(f"          「{_t(old.題名, 44)}」")
-    if len(rows) > a.show:
-        print(f"  … 他 {len(rows) - a.show} 件")
-    if not a.apply:
-        print("\n見ただけ。決めるなら --apply")
-        return 0
-
-    n_keep = n_take = 0
-    for d, old, how, src, size, cur, swap in rows:
-        if swap:
-            # ★ 自分で台帳に書かない。**record を呼ぶ**。実体の引き継ぎも
-            #   承知の伝搬も ID の採り方も、あちらに一つだけ在るべき
-            _run(cmd_record, id=old.巻ID, fp=d["指紋"], path=str(src),
-                 title=old.題名, label=old.レーベル, author=old.著者,
-                 artist=old.絵師, date=old.発売日, isbn=old.ISBN,
-                 kind=old.種類, work=old.作品, num=old.巻号,
-                 why=f"★ 置き場に**同じ巻のより良い実体**があった"
-                     f"（こちら {size:,} / 棚 {cur.サイズ:,} バイト）。"
-                     f"同じ巻だと分かったのは {how}。規則 7-4 で採用を入れ替える")
-            n_take += 1
-        else:
-            _run(cmd_pend, fp=d["指紋"], path=str(src),
-                 why=f"同じ巻（{old.巻ID}「{_t(old.題名, 30)}」）を既に持っており、"
-                     f"棚の方が良い（棚 {cur.サイズ:,} / こちら {size:,} バイト）。"
-                     f"同じ巻だと分かったのは {how}。規則 7-4 で棚を残す。"
-                     f"実体は置き場に置いたまま")
-            n_keep += 1
-    print(f"\n棚を残した {n_keep} 件（実体は置き場に残る） / 入れ替えた {n_take} 件")
+    print(f"# 既蔵同巻の候補 {len(rows)} 件（採否・品質は未判定）\n")
+    for _d, old, how, src, size, cur in rows[: a.show]:
+        print(f"  {old.巻ID}（{how}） 棚 {cur.サイズ:,} / 候補 {size:,}")
+        print(f"      {src}")
+    print("\n候補表示のみ。実体を比較し、確定後に record する")
     return 0
 
 
@@ -850,11 +967,12 @@ def cmd_dup(a) -> int:
 _TOK_TAIL = re.compile(
     r"\s*(?:購入特典|特典\s*SS|特典|BOOK\s*[☆★]?\s*WALKER|アニメイト|とらのあな|"
     r"ゲーマーズ|メロンブックス|書き下ろし|ショートストーリー|SS\b|ペーパー|"
-    r"リーフレット|小冊子|限定).*$", re.I)
+    r"リーフレット|小冊子|限定).*$",
+    re.I,
+)
 _TOK_QUOTED = re.compile(r"『([^』]{4,80})』")
-# 特典らしいと見る語。長さも見る（本篇と同じだけ字があるものは特典ではない）
+# 親巻を調べる候補を探す語。本文の長さで特典を除外しない。
 _TOK_HINT = re.compile(r"特典|SS|ショートストーリー|ペーパー|書き下ろし|限定", re.I)
-TOKUTEN_MAX_CHARS = 20000
 
 
 def _tokuten_head(s: str) -> tuple:
@@ -889,48 +1007,25 @@ def cmd_oya(a) -> int:
         src = ot if _TOK_QUOTED.search(ot) else (ot or nm)
         if not _TOK_HINT.search(src + nm):
             continue
-        if d["自身"]["本文"]["字数"] > TOKUTEN_MAX_CHARS:
-            continue          # 本篇の長さがある。特典ではない
         head, num = _tokuten_head(src)
         v, why = SM.parent_of(idx, head, num)
         (ok if v else ng).append((d, v, head, num, why))
 
-    print(f"# 特典らしきもの {len(ok) + len(ng)} 件"
-          f"（親が決まった {len(ok)} / 決まらない {len(ng)}）\n")
-    for d, v, head, num, why in ok[:a.show]:
+    print(
+        f"# 特典らしきもの {len(ok) + len(ng)} 件"
+        f"（親が決まった {len(ok)} / 決まらない {len(ng)}）\n"
+    )
+    for d, v, _head, _num, why in ok[: a.show]:
         print(f"  親 {v.巻ID}「{_t(v.題名, 40)}」（{why}）")
         print(f"      ← {_t(Path(d['実体']['path']).name, 66)}")
-    for d, v, head, num, why in ng[:a.show]:
+    for d, _v, head, num, why in ng[: a.show]:
         print(f"  ? {why}")
-        print(f"      切り出し「{_t(head, 40)}」{f' 第{num:g}巻' if num else ''}"
-              f"  ← {_t(Path(d['実体']['path']).name, 50)}")
-    if not a.apply:
-        print("\n見ただけ。書くなら --apply")
-        return 0
-
-    n = 0
-    for d, v, head, num, why in ok:
-        t = (d["自身"].get("opf") or {}).get("題名") or Path(d["実体"]["path"]).name
-        kind = ("書き下ろしSSペーパー" if "ペーパー" in t
-                else "ガイドブック" if "ガイドブック" in t
-                else "書き下ろしショートストーリー")
-        _run(cmd_record, fp=d["指紋"], path=d["実体"]["path"],
-             title=f"{v.題名.split('　')[0]} 特典 {kind}",
-             label=v.レーベル, author=v.著者, artist=v.絵師,
-             date=v.発売日, kind="特典", work=v.作品,
-             why=f"★ 特典。親巻は**台帳の中から**決めた — 杜は特典を載せない。"
-                 f"切り出した親の題名「{head[:30]}」"
-                 f"{f'第{num:g}巻' if num else ''}が {v.巻ID}"
-                 f"「{v.題名[:30]}」と{why}で当たる。前方一致は使わない"
-                 f"（同じ作品の別の巻を掴む。壊れ方 1-9）")
-        n += 1
-    print(f"\n{n} 件を台帳に書いた")
+        print(
+            f"      切り出し「{_t(head, 40)}」{f' 第{num:g}巻' if num else ''}"
+            f"  ← {_t(Path(d['実体']['path']).name, 50)}"
+        )
+    print("\n候補表示のみ。配布元・対応巻と照合してから record する")
     return 0
-
-
-def cmd_gaps(a) -> int:
-    import gaps
-    return gaps.main(["--apply"] if a.apply else [])
 
 
 def cmd_undo(a) -> int:
@@ -949,8 +1044,10 @@ def cmd_undo(a) -> int:
     if not n:
         print(f"★ 戻せたものが一つもありません（{p}）")
         return 1
-    print(f"{n} 件を戻しました（{p}）。台帳の path を {rewritten} 行追記、"
-          f"空フォルダを {swept} 畳んだ")
+    print(
+        f"{n} 件を戻しました（{p}）。台帳の path を {rewritten} 行追記、"
+        f"空フォルダを {swept} 畳んだ"
+    )
     return 1 if blocked else 0
 
 
@@ -968,8 +1065,9 @@ def cmd_status(a) -> int:
     print(f"  杜の索引 {len(M.load_index()):>6}")
     inbox = paths.get("inbox")
     if inbox and inbox.exists():
-        n = sum(1 for p in inbox.rglob("*")
-                if p.is_file() and p.suffix.lower() in BOOK_EXT)
+        n = sum(
+            1 for p in inbox.rglob("*") if p.is_file() and p.suffix.lower() in BOOK_EXT
+        )
         print(f"  置き場に {n:>6} 件")
     return 0
 
@@ -1010,34 +1108,56 @@ def main(argv=None) -> int:
     p.add_argument("--work", help="作品 id（rdb:6547 など）")
     p.add_argument("--num", type=float)
     p.add_argument("--id", help="既存の巻を改めるとき")
-    p.add_argument("--leave", action="store_true",
-                   help="--retire-into と一緒に。実体を移さず、今在る場所に置いたままにする")
-    p.add_argument("--only", action="store_true",
-                   help="引き継がず、今指した実体だけにする（寄せ間違いを切る）")
-    p.add_argument("--noted", action="store_true",
-                   help="源の方が誤っていると見た上で決めた（検めの指摘を下げる）")
-    p.add_argument("--off-shelf", metavar="なぜ",
-                   help="棚に置かない（実体は今在る場所のまま。台帳の行は残る）")
-    p.add_argument("--retire-into", metavar="巻ID",
-                   help="この巻を別の巻へ統合する（--id と一緒に。行は消さない）")
+    p.add_argument(
+        "--leave",
+        action="store_true",
+        help="--retire-into と一緒に。実体を移さず、今在る場所に置いたままにする",
+    )
+    p.add_argument(
+        "--only",
+        action="store_true",
+        help="引き継がず、今指した実体だけにする（寄せ間違いを切る）",
+    )
+    p.add_argument(
+        "--noted",
+        action="store_true",
+        help="源の方が誤っていると見た上で決めた（検めの指摘を下げる）",
+    )
+    shelf_choice = p.add_mutually_exclusive_group()
+    shelf_choice.add_argument(
+        "--off-shelf",
+        metavar="なぜ",
+        help="棚に置かない（実体は今在る場所のまま。台帳の行は残る）",
+    )
+    shelf_choice.add_argument(
+        "--on-shelf", action="store_true", help="補証済みの棚外保留を解除する"
+    )
+    p.add_argument(
+        "--retire-into",
+        metavar="巻ID",
+        help="この巻を別の巻へ統合する（--id と一緒に。行は消さない）",
+    )
     p.add_argument("--by", default="agent", choices=("agent", "user"))
     p.add_argument("--why", required=True)
     p.set_defaults(fn=cmd_record)
     # ★ --fp と --title は「巻を書く」ときだけ要る。統合には要らないので
     #   argparse ではなく cmd_record の中で見る
 
-    p = sub.add_parser("work", help="作品の完結・最終巻")
+    p = sub.add_parser("work", help="任意の作品IDと表示名を記録する")
     p.add_argument("id")
     p.add_argument("--name")
-    p.add_argument("--done", type=lambda x: x.lower() in ("1", "true", "yes"))
-    p.add_argument("--last", help="既に出た最新巻の yyyymmdd")
     p.add_argument("--by", default="agent", choices=("agent", "user"))
     p.add_argument("--why", required=True)
     p.set_defaults(fn=cmd_work)
 
     p = sub.add_parser("pend", help="決められないものを未決に出す")
     p.add_argument("--fp", required=True)
-    p.add_argument("--path")
+    p.add_argument("--path", required=True)
+    p.add_argument(
+        "--reason-dir",
+        required=True,
+        help="置き場内の理由別保管先。既存フォルダを優先する",
+    )
     p.add_argument("--why", required=True)
     p.set_defaults(fn=cmd_pend)
 
@@ -1058,19 +1178,13 @@ def main(argv=None) -> int:
     p.add_argument("undo", nargs="?")
     p.set_defaults(fn=cmd_undo)
 
-    p = sub.add_parser("dup", help="置き場の実体が既に棚に在る巻か突き合わせる")
-    p.add_argument("--apply", action="store_true")
+    p = sub.add_parser("dup", help="既蔵同巻の候補を表示する")
     p.add_argument("--show", type=int, default=12)
     p.set_defaults(fn=cmd_dup)
 
-    p = sub.add_parser("oya", help="特典の親の巻を台帳の中から探す")
-    p.add_argument("--apply", action="store_true")
+    p = sub.add_parser("oya", help="特典の親巻候補を台帳から表示する")
     p.add_argument("--show", type=int, default=12)
     p.set_defaults(fn=cmd_oya)
-
-    p = sub.add_parser("gaps", help="欠巻の標を立て直す（台帳から毎回引き直す）")
-    p.add_argument("--apply", action="store_true")
-    p.set_defaults(fn=cmd_gaps)
 
     p = sub.add_parser("status", help="今どうなっているか")
     p.set_defaults(fn=cmd_status)

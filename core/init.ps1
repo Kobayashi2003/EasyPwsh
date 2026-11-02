@@ -1,5 +1,17 @@
 ﻿$global:CURRENT_SCRIPT_DIRECTORY = Split-Path (Split-Path $MyInvocation.MyCommand.Definition)
 
+# Generated startup files: the compiled WinAPI DLL, tool init scripts, the conda hook and the
+# Scoop installer. $env:EASYPWSH_CACHE_DIR moves them; a relative path is relative to this
+# project. Safe to delete; the next start regenerates them.
+$global:EASYPWSH_CACHE_DIR = if ($env:EASYPWSH_CACHE_DIR) { $env:EASYPWSH_CACHE_DIR } else { 'downloads\cache' }
+if (-not [IO.Path]::IsPathRooted($global:EASYPWSH_CACHE_DIR)) {
+    $global:EASYPWSH_CACHE_DIR = Join-Path $global:CURRENT_SCRIPT_DIRECTORY $global:EASYPWSH_CACHE_DIR
+}
+
+# The console otherwise uses the system ANSI code page (932 here), which cannot
+# show text in other locales, e.g. pwsh's own zh-CN "profile load time" notice.
+[Console]::InputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+
 # ─── Startup timing harness ─────────────────────────────────────────────────
 # Timings are always recorded (Stopwatch overhead is negligible); the summary is
 # only printed when $global:PROFILE_STARTUP is $true (set in start/variables.ps1,

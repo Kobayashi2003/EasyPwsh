@@ -62,6 +62,7 @@ Listed in load order:
 | `utils/` | Standalone scripts, callable by name and grouped by author. |
 | `test/` | Scratch scripts. |
 | `config/` | Configs for the bundled tools. |
+| `downloads/cache/` | Generated at startup: the WinAPI DLL, tool init scripts, the conda hook, the Scoop installer. Safe to delete; `$env:EASYPWSH_CACHE_DIR` moves it (relative to this folder). |
 
 # Usage
 

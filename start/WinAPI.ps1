@@ -2,7 +2,7 @@
 # every shell costs ~450ms; loading a prebuilt DLL is ~10-50ms. The DLL name
 # carries the source mtime: editing this file makes the next shell compile a
 # fresh build even while running shells keep the previous one loaded and locked.
-$__winapiDir = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
+$__winapiDir = $global:EASYPWSH_CACHE_DIR
 $__winapiDll = Join-Path $__winapiDir ('WinAPI-ps{0}-clr{1}-{2:x}.dll' -f $PSVersionTable.PSVersion.Major, [Environment]::Version.Major, (Get-Item $PSCommandPath).LastWriteTimeUtc.Ticks)
 
 if (-not ('WinApi' -as [type])) {

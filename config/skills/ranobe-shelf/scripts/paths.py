@@ -1,10 +1,12 @@
-"""置き場 — 三つだけ。
+"""置き場 — 四つ。
 
     棚      整理済みの蔵書を置く場所
     置き場   まだ整理していない実体がある場所
-    作業     台帳・索引・控え・計画・取消・隔離（**唯一の資産**）
+    作業     台帳・計画・取消・隔離（**唯一の資産**）
+    控え     源への問い合わせの控えと杜の索引。作り直せるので丸ごと消してよい
 
-決まり方は 環境変数 → `.env` → 訊く の順。
+決まり方は 環境変数 → `.env` → 訊く の順。控えだけは物を動かさないので、
+決まっていなければ訊かずに既定を使う。相対パスはスキルの直下から数える。
 
 `.env` はスキルの直下に置く。**var の中には置けない** — var 自身が
 そこに書いてあるので、先に読めないと場所が分からない。
@@ -24,14 +26,39 @@ ENV_FILE = HERE / ".env"
 
 # (鍵, 環境変数, 日本語, 説明, 既定値)
 ITEMS = [
-    ("shelf", "RANOBE_SHELF", "棚", "整理済みの蔵書を置く場所",
-     r"E:\書籍 (ライトノベル)"),
-    ("inbox", "RANOBE_INBOX", "置き場", "まだ整理していない実体がある場所",
-     r"E:\書籍 (ライトノベル)\uncheck"),
-    # 既定はスキルの直下。.gitignore で外してある（索引が 23 MB あるため）
-    ("var", "RANOBE_VAR", "作業", "台帳・索引・控えを置く場所（唯一の資産）",
-     str(HERE / "var")),
+    (
+        "shelf",
+        "RANOBE_SHELF",
+        "棚",
+        "整理済みの蔵書を置く場所",
+        str(Path.home() / "Books" / "LightNovels"),
+    ),
+    (
+        "inbox",
+        "RANOBE_INBOX",
+        "置き場",
+        "まだ整理していない実体がある場所",
+        str(Path.home() / "Books" / "Inbox"),
+    ),
+    # 既定の作業データはスキルの直下。Gitの対象外。
+    (
+        "var",
+        "RANOBE_VAR",
+        "作業",
+        "台帳・計画・取消を置く場所（唯一の資産）",
+        str(HERE / "var"),
+    ),
+    # 既定の控えもスキルの直下。Gitの対象外。
+    (
+        "cache",
+        "RANOBE_CACHE",
+        "控え",
+        "問い合わせの控えと索引を置く場所（作り直せる）",
+        str(HERE / "cache"),
+    ),
 ]
+# 決まっていなくても訊かないもの
+QUIET = {"cache"}
 ENV = {k: e for k, e, *_ in ITEMS}
 
 
@@ -69,11 +96,8 @@ def save(d: dict) -> Path:
 
 
 def get(key: str) -> Path | None:
-    v = os.environ.get(ENV.get(key, ""))
-    if v:
-        return Path(v)
-    v = load().get(key)
-    return Path(v) if v else None
+    v = os.environ.get(ENV.get(key, "")) or load().get(key)
+    return HERE / v if v else None
 
 
 def _need(key: str, jp: str) -> Path:
@@ -97,6 +121,12 @@ def var() -> Path:
     return p
 
 
+def cache() -> Path:
+    p = get("cache") or HERE / "cache"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def quarantine() -> Path:
     """★ 作らない。plan がここを呼ぶので、作ると「計画しただけ」で
     フォルダが生える。実際に置くとき apply が作る。"""
@@ -104,8 +134,11 @@ def quarantine() -> Path:
 
 
 def missing() -> list:
-    return [(k, e, jp, desc, old) for k, e, jp, desc, old in ITEMS
-            if get(k) is None]
+    return [
+        (k, e, jp, desc, old)
+        for k, e, jp, desc, old in ITEMS
+        if k not in QUIET and get(k) is None
+    ]
 
 
 def _pad(s: str, width: int) -> str:
@@ -116,12 +149,23 @@ def _pad(s: str, width: int) -> str:
 def describe() -> str:
     cfg = load()
     out = []
-    for k, e, jp, _, _ in ITEMS:
-        cur = get(k)
-        src = ("環境変数" if os.environ.get(e)
-               else ".env" if k in cfg else "**未設定**")
-        out.append("  " + _pad(jp, 8)
-                   + _pad(str(cur) if cur else "（決まっていない）", 46) + src)
+    for k, e, jp, _, old in ITEMS:
+        cur = get(k) or (Path(old) if k in QUIET else None)
+        src = (
+            "環境変数"
+            if os.environ.get(e)
+            else ".env"
+            if k in cfg
+            else "既定"
+            if k in QUIET
+            else "**未設定**"
+        )
+        out.append(
+            "  "
+            + _pad(jp, 8)
+            + _pad(str(cur) if cur else "（決まっていない）", 46)
+            + src
+        )
     out.append(f"\n  設定ファイル  {ENV_FILE}")
     return "\n".join(out)
 
@@ -131,13 +175,13 @@ def prompt_text() -> str:
     if not ms:
         return ""
     lines = ["この道具はファイルを動かします。**置き場を確かめてください。**", ""]
-    for k, e, jp, desc, old in ms:
+    for _k, _e, jp, desc, old in ms:
         lines.append(f"  {jp}  — {desc}")
-        lines.append(f"        これまで使っていた場所: {old}")
+        lines.append(f"        未設定時の提案: {old}")
     lines += [
         "",
-        "  これでよければ:  python cli.py config --default",
-        '  変えるなら:      python cli.py config --shelf "…" --inbox "…" --var "…"',
+        "  これでよければ:  uv run cli.py config --default",
+        '  変えるなら:      uv run cli.py config --shelf "…" --inbox "…" --var "…"',
         f"  直に書くなら:    {ENV_FILE}",
     ]
     return "\n".join(lines)

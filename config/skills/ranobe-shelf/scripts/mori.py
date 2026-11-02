@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import html
+import io
 import json
 import re
 import sys
@@ -15,14 +16,16 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import ledger as L
 import paths
 
-UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
 BASE = "https://ranobe-mori.net"
 FEED = BASE + "/rss.xml"
 SEARCH = "https://ranobe-mori.xsrv.jp/mt6/mt-search.cgi"
@@ -30,8 +33,11 @@ FIRST = (2005, 1)
 INTERVAL = 1.2
 
 _ENTRY = re.compile(r'<div class="entry">(.*?)(?=<div class="entry">|\Z)', re.S)
-_H2 = re.compile(r'<h2[^>]*class="entry-header"[^>]*>'
-                 r'(?:<a[^>]*>)?(.*?)(?:</a>)?</h2>', re.S)
+_H2 = re.compile(
+    r'<h2[^>]*class="entry-header"[^>]*>'
+    r"(?:<a[^>]*>)?(.*?)(?:</a>)?</h2>",
+    re.S,
+)
 _TABLE = re.compile(r"<table[^>]*>(.*?)</table>", re.S)
 _TR = re.compile(r"<tr[^>]*class=\"(book-header|book-info\d?)\"[^>]*>(.*?)</tr>", re.S)
 _CELL = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.S)
@@ -41,8 +47,14 @@ _DELAY = re.compile(r"\(([^()]*より延期)\)")
 _FEED_TITLE = re.compile(r"^(.*?)\s*-\s*(\d{4})年(\d{1,2})月刊")
 
 FIELD = {
-    "発売日": "day", "タイトル": "title", "著者": "author", "イラスト": "artist",
-    "定価": "price", "ISBN": "isbn", "レーベル": "label", "出版元": "label",
+    "発売日": "day",
+    "タイトル": "title",
+    "著者": "author",
+    "イラスト": "artist",
+    "定価": "price",
+    "ISBN": "isbn",
+    "レーベル": "label",
+    "出版元": "label",
     "原作者": "original",
 }
 
@@ -52,7 +64,7 @@ def var() -> Path:
 
 
 def index_dir() -> Path:
-    d = var() / "index"
+    d = paths.cache() / "index"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -91,10 +103,9 @@ def _date(year: str, month: str, cell) -> str:
     """
     y2, mm = year[2:], int(month)
     # 見えない字（Cf: 書字方向の指定・ゼロ幅空白・BOM）を先に落とす
-    s = "".join(c for c in (cell or "")
-                if unicodedata.category(c) != "Cf").strip()
+    s = "".join(c for c in (cell or "") if unicodedata.category(c) != "Cf").strip()
     m = re.fullmatch(r"(\d{1,2})\s*[/／・]\s*(\d{1,2})", s)
-    if m:                      # 月をまたぐ表記
+    if m:  # 月をまたぐ表記
         mm2, dd = int(m.group(1)), int(m.group(2))
         if 1 <= mm2 <= 12 and 1 <= dd <= 31:
             # 12 月の頁に 1/xx が載っていれば翌年
@@ -104,7 +115,7 @@ def _date(year: str, month: str, cell) -> str:
     m = re.fullmatch(r"(\d{1,2})", s)
     if m and 1 <= int(m.group(1)) <= 31:
         return f"{y2}{mm:02d}{int(m.group(1)):02d}"
-    return f"{y2}{mm:02d}00"   # 日が読めない
+    return f"{y2}{mm:02d}00"  # 日が読めない
 
 
 # NFKC は ～(FF5E) を ~ にするが 〜(301C) は変えない。ダッシュ類も揃わない
@@ -112,8 +123,10 @@ _DASH = dict.fromkeys(map(ord, "―ー−‐-–—ｰ─━‒﹘"), ord("-"))
 _TILDE = dict.fromkeys(map(ord, "~〜～﹋"), ord("~"))
 # 山括弧も同じ。NFKC は ＜(FF1C) を < にするが 〈(3008) は変えないので、
 # `〈Infinite Dendrogram〉` と `＜Infinite Dendrogram＞` が別物になる
-_ANGLE = {**dict.fromkeys(map(ord, "〈《≪«＜<‹"), ord("<")),
-          **dict.fromkeys(map(ord, "〉》≫»＞>›"), ord(">"))}
+_ANGLE = {
+    **dict.fromkeys(map(ord, "〈《≪«＜<‹"), ord("<")),
+    **dict.fromkeys(map(ord, "〉》≫»＞>›"), ord(">")),
+}
 # 引用符は**揃えるのではなく落とす**。山括弧と違って、片方に有って片方に
 # 無いという形で食い違う（手元「妹が“義妹”ってこと…」/ 杜「妹が義妹ってこと…」）。
 # 索引 90,995 件で確かめて、落としても新たに重なる組は **0**（実測-29）
@@ -126,7 +139,9 @@ _DECOR = re.compile(
     r"【[^【】]*(?:電子|特典|限定|書き下ろし|SS)[^【】]*】"
     r"|〈[^〈〉]*(?:電子|限定)[^〈〉]*〉"
     r"|\s*BOOK[☆★]?WALKER\s*(?:special\s*edition|限定[^ ]*)?"
-    r"|【[^【】]*版】", re.I)
+    r"|【[^【】]*版】",
+    re.I,
+)
 
 
 def norm(s: str) -> str:
@@ -144,7 +159,7 @@ def strip_decor(s: str, labels: set | None = None) -> str:
     if labels:
         m = re.search(r"[(（]([^()（）]{2,20})[)）]\s*$", s)
         if m and norm(m.group(1)) in labels:
-            s = s[:m.start()].strip()
+            s = s[: m.start()].strip()
     return s
 
 
@@ -180,27 +195,33 @@ def parse(body: str, ym: str) -> list:
                     named = [c for c in cells if FIELD.get(c)]
                     if len(named) >= 3:
                         cols = [FIELD.get(c) for c in cells]
-                        extra = [(i, c) for i, c in enumerate(cells)
-                                 if FIELD.get(c) is None and c]
+                        extra = [
+                            (i, c)
+                            for i, c in enumerate(cells)
+                            if FIELD.get(c) is None and c
+                        ]
                     elif len(cells) <= 2 and cells and cells[0]:
                         section = cells[0]
                     continue
                 if not cols:
                     continue
-                rec = {"label": section or head_label, "month": ym}
+                rec: dict[str, str | bool] = {
+                    "label": section or head_label,
+                    "month": ym,
+                }
                 for i, key in enumerate(cols):
                     if key and i < len(cells):
                         rec[key] = cells[i]
                 for i, name in extra:
                     if i < len(cells) and cells[i]:
                         rec["label"] = name
-                title = rec.get("title", "")
+                title = str(rec.get("title", ""))
                 d = _DELAY.search(title)
                 if d:
                     rec["delayed"] = d.group(1)
                     title = _DELAY.sub("", title).strip()
                 rec["title"] = title
-                raw_isbn = rec.get("isbn", "")
+                raw_isbn = str(rec.get("isbn", ""))
                 rec["digital_only"] = "電子専売" in raw_isbn
                 m = _ISBN.search(raw_isbn)
                 rec["isbn"] = re.sub(r"-", "", m.group(1)) if m else ""
@@ -252,8 +273,9 @@ def load_index() -> list:
     p = index_path()
     if not p.exists():
         return []
-    rows = [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines()
-            if x.strip()]
+    rows = [
+        json.loads(x) for x in p.read_text(encoding="utf-8").split("\n") if x.strip()
+    ]
     for r in rows:
         r["_k"] = index_key(r.get("title", ""))
         r["_lk"] = norm(r.get("label", ""))
@@ -266,9 +288,17 @@ def _key_of(r: dict) -> str:
 
 
 def write_index(rows: list) -> None:
-    L.write_atomic(index_path(), "".join(
-        json.dumps({k: v for k, v in r.items() if not k.startswith("_")},
-                   ensure_ascii=False) + "\n" for r in rows))
+    L.write_atomic(
+        index_path(),
+        "".join(
+            json.dumps(
+                {k: v for k, v in r.items() if not k.startswith("_")},
+                ensure_ascii=False,
+            )
+            + "\n"
+            for r in rows
+        ),
+    )
 
 
 def _flush(st: dict, by_month: dict) -> None:
@@ -306,18 +336,24 @@ def crawl(targets: list, st: dict, rows_by_month: dict) -> tuple:
         had = len(rows_by_month.get(ym, []))
         if not rows and ym <= _this_month():
             kept += 1
-            print(f"  [{i}/{len(targets)}] {ym}  ★ 過ぎた月なのに 0 件"
-                  f"（{'前の ' + str(had) + ' 件を残す' if had else '取れていない'}）",
-                  flush=True)
+            print(
+                f"  [{i}/{len(targets)}] {ym}  ★ 過ぎた月なのに 0 件"
+                f"（{'前の ' + str(had) + ' 件を残す' if had else '取れていない'}）",
+                flush=True,
+            )
             continue
         if not rows and had:
             kept += 1
-            print(f"  [{i}/{len(targets)}] {ym}  ★ 0 件で返った"
-                  f"（前の {had} 件を残す）", flush=True)
+            print(
+                f"  [{i}/{len(targets)}] {ym}  ★ 0 件で返った（前の {had} 件を残す）",
+                flush=True,
+            )
             continue
         rows_by_month[ym] = rows
-        st["months"][ym] = {"at": datetime.now(timezone.utc).isoformat(
-            timespec="seconds"), "n": len(rows)}
+        st["months"][ym] = {
+            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "n": len(rows),
+        }
         ok += 1
         if i % 12 == 0 or len(rows):
             print(f"  [{i}/{len(targets)}] {ym}  {len(rows)} 件", flush=True)
@@ -331,15 +367,16 @@ def cmd_crawl(args) -> int:
     by_month = {}
     for r in load_index():
         by_month.setdefault(r["month"], []).append(r)
-    targets = [m for m in months()
-               if args.all or m not in st["months"]]
+    targets = [m for m in months() if args.all or m not in st["months"]]
     print(f"# 取得 {len(targets)} 月分")
     ok, fail, kept = crawl(targets, st, by_month)
     rows = [r for m in sorted(by_month) for r in by_month[m]]
     write_index(rows)
     save_state(st)
-    print(f"\n成功 {ok} / 失敗 {fail} / 0 件で返って前を残した {kept}"
-          f" / 索引 {len(rows):,} 件 -> {index_path()}")
+    print(
+        f"\n成功 {ok} / 失敗 {fail} / 0 件で返って前を残した {kept}"
+        f" / 索引 {len(rows):,} 件 -> {index_path()}"
+    )
     return 1 if (fail or kept) else 0
 
 
@@ -353,8 +390,9 @@ def feed_months() -> list:
             continue
         m = _FEED_TITLE.match(_text(t.group(1)))
         if m:
-            out.append((f"{m.group(2)}/{int(m.group(3)):02d}",
-                        _text(d.group(1)) if d else ""))
+            out.append(
+                (f"{m.group(2)}/{int(m.group(3)):02d}", _text(d.group(1)) if d else "")
+            )
     return out
 
 
@@ -379,10 +417,12 @@ def cmd_update(args) -> int:
     ok, fail, kept = crawl(targets, st, by_month)
     rows = [r for m in sorted(by_month) for r in by_month[m]]
     write_index(rows)
-    st["last_feed"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    st["last_feed"] = datetime.now(UTC).isoformat(timespec="seconds")
     save_state(st)
-    print(f"\n成功 {ok} / 失敗 {fail} / 0 件で返って前を残した {kept}"
-          f" / 索引 {len(rows):,} 件")
+    print(
+        f"\n成功 {ok} / 失敗 {fail} / 0 件で返って前を残した {kept}"
+        f" / 索引 {len(rows):,} 件"
+    )
     return 1 if (fail or kept) else 0
 
 
@@ -407,8 +447,7 @@ def cmd_status(args) -> int:
 
 
 def _search_online(word: str) -> list:
-    body = fetch(f"{SEARCH}?IncludeBlogs=1&search="
-                 + urllib.parse.quote(word))
+    body = fetch(f"{SEARCH}?IncludeBlogs=1&search=" + urllib.parse.quote(word))
     return parse(body, "0000/00") if body else []
 
 
@@ -457,7 +496,8 @@ def _debracket(k: str) -> str:
 #   巻を取り違える（壊れ方 1-9）。頭に来る括弧にも触らない
 _SERIES = re.compile(
     r"[(<〈《【]\s*(?![^)>〉》】]*[上中下前後完零一二三四五六七八九十0-9])"
-    r"[^)>〉》】]{1,10}\s*[)>〉》】]\s*$")
+    r"[^)>〉》】]{1,10}\s*[)>〉》】]\s*$"
+)
 
 
 # 杜のレーベル欄に文庫名ではなく**判型**が入っている行がある（索引 981 件）。
@@ -488,8 +528,7 @@ def index_key(title: str) -> str:
 
 
 def labels_of(rows: list) -> set:
-    return {r.get("_lk") or norm(r.get("label", ""))
-            for r in rows if r.get("label")}
+    return {r.get("_lk") or norm(r.get("label", "")) for r in rows if r.get("label")}
 
 
 def by_label_month(label: str, yymm: str, rows: list | None = None) -> list:
@@ -502,9 +541,12 @@ def by_label_month(label: str, yymm: str, rows: list | None = None) -> list:
     lk, mk = norm(label), (yymm or "")[:4]
     if not lk or len(mk) != 4:
         return []
-    return [r for r in rows
-            if (r.get("_lk") or norm(r.get("label", ""))) == lk
-            and (r.get("date") or "")[:4] == mk]
+    return [
+        r
+        for r in rows
+        if (r.get("_lk") or norm(r.get("label", ""))) == lk
+        and (r.get("date") or "")[:4] == mk
+    ]
 
 
 def find(word: str, rows: list | None = None) -> dict:
@@ -585,8 +627,7 @@ def find(word: str, rows: list | None = None) -> dict:
         if len(exact) == 1:
             return {"exact": exact, "hint": [], "経路": "括弧を落として"}
 
-    hint = ([r for kk, r in keys if k in kk or kk in k]
-            if len(k) >= 6 else [])
+    hint = [r for kk, r in keys if k in kk or kk in k] if len(k) >= 6 else []
     return {"exact": [], "hint": hint[:12], "経路": ""}
 
 
@@ -609,26 +650,33 @@ def cmd_find(args) -> int:
     res = find(args.word, rows)
     print(f"# 「{args.word}」  完全一致 {len(res['exact'])} / 示唆 {len(res['hint'])}")
     for r in res["exact"]:
-        print(f"  [一致] {r['label']} {r['date']} 「{r['title']}」"
-              f" 著:{r.get('author','-')} 絵:{r.get('artist','-')}"
-              f" {r.get('isbn') or ('電子専売' if r.get('digital_only') else '-')}")
+        print(
+            f"  [一致] {r['label']} {r['date']} 「{r['title']}」"
+            f" 著:{r.get('author', '-')} 絵:{r.get('artist', '-')}"
+            f" {r.get('isbn') or ('電子専売' if r.get('digital_only') else '-')}"
+        )
     for r in res["hint"]:
-        print(f"  [示唆] {r['label']} {r['date']} 「{r['title']}」"
-              f" 著:{r.get('author','-')} 絵:{r.get('artist','-')}")
+        print(
+            f"  [示唆] {r['label']} {r['date']} 「{r['title']}」"
+            f" 著:{r.get('author', '-')} 絵:{r.get('artist', '-')}"
+        )
     if not res["exact"] and args.online:
         got = _search_online(args.word)
         print(f"\n# 網で検索 -> {len(got)} 行（entry 単位で返るので要絞り込み）")
         k = norm(args.word)
         for r in got:
             if k in norm(r["title"]) or norm(r["title"]) in k:
-                print(f"  [網] {r['label']} 「{r['title']}」"
-                      f" 著:{r.get('author','-')} 絵:{r.get('artist','-')}"
-                      f" {r.get('isbn','-')}")
+                print(
+                    f"  [網] {r['label']} 「{r['title']}」"
+                    f" 著:{r.get('author', '-')} 絵:{r.get('artist', '-')}"
+                    f" {r.get('isbn', '-')}"
+                )
     return 0
 
 
 def main(argv=None) -> int:
     import argparse
+
     ap = argparse.ArgumentParser(prog="mori")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -654,7 +702,8 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if isinstance(sys.stdout, io.TextIOWrapper):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
     raise SystemExit(main())

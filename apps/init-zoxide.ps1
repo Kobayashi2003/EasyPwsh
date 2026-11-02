@@ -13,7 +13,7 @@ if (-not (Get-Command 'zoxide' -ErrorAction SilentlyContinue)) {
 # zoxide's hook must load eagerly (it tracks every `cd`), but its init output is
 # deterministic — cache it and regenerate only when zoxide.exe changes, so we
 # don't spawn zoxide on every shell start.
-$__zoxideDir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
+$__zoxideDir   = $global:EASYPWSH_CACHE_DIR
 $__zoxideCache = Join-Path $__zoxideDir ('zoxide-init-utf8-ps{0}.ps1' -f $PSVersionTable.PSVersion.Major)
 $__zoxideExe   = (Get-Command zoxide -CommandType Application | Select-Object -First 1).Source
 if (-not (Test-Path $__zoxideCache) -or

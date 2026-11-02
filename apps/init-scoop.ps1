@@ -51,7 +51,7 @@ if (!(Get-Command "scoop" -ErrorAction SilentlyContinue)) {
     Write-Host "If you don't want to use a proxy, just press Enter." -ForegroundColor Yellow
     $install_proxy = Read-Host -Prompt "Enter proxy address (e.g. $global:PROXY_ADDRESS)"
 
-    $installer_dir = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "downloads\cache"
+    $installer_dir = $global:EASYPWSH_CACHE_DIR
     $installer     = Join-Path $installer_dir -ChildPath "install-scoop.ps1"
     if (-not (Test-Path $installer_dir)) { New-Item -Path $installer_dir -ItemType Directory -Force | Out-Null }
 

@@ -3,11 +3,7 @@
 巻台帳の鍵は 巻ID そのもの。同じ鍵が暗黙にぶつかることは無い。
 判断を改めるときは巻IDを明示して追記する（後の行が今の答え）。
 
-作品は id しか持たない。名前を付けず、フォルダも作らず、統合もしない。
-唯一の役目は、同じ作品の巻が違う状態に散らばらないようにすること。
-
-状態は保存しない。**時間の関数なので毎回計算する** —
-最終巻から 12 か月を過ぎれば連載中は打ち切りに変わる。
+作品IDは巻どうしの関係を記録する任意情報。配置は各巻の具体レーベルで決める。
 """
 
 from __future__ import annotations
@@ -16,15 +12,12 @@ import hashlib
 import json
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 import paths
 
 KINDS = ("本篇", "特典", "番外", "短編集", "合本版", "其他")
-STATES = ("1. 連載中", "2. 打ち切り", "3. 完結", "4. 未分類")
-OTHER_DIR = "_其他"
-STALE_MONTHS = 12
 
 _CHUNK = 64 * 1024
 
@@ -42,7 +35,7 @@ def works_path() -> Path:
 
 
 def cache_dir() -> Path:
-    return var() / "cache"
+    return paths.cache() / "sources"
 
 
 def plans_dir() -> Path:
@@ -130,68 +123,55 @@ class Vol:
         return [f for f in self.ファイル if not f.採用]
 
     def tags(self) -> list:
-        # 二番目は必ず著者。著者が無いときに絵師を繰り上げない
-        names = (self.レーベル, self.著者, self.絵師 if self.著者 else "",
-                 self.発売日)
+        # レーベルはフォルダに持つ。名前の先頭は著者。
+        names = (self.著者, self.絵師 if self.著者 else "", self.発売日)
         return [t for t in names if t]
 
     def to_json(self) -> str:
         d = asdict(self)
-        d["ファイル"] = [asdict(f) if not isinstance(f, dict) else f
-                       for f in self.ファイル]
+        d["ファイル"] = [
+            asdict(f) if not isinstance(f, dict) else f for f in self.ファイル
+        ]
         return json.dumps(d, ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Vol":
-        return cls(巻ID=d["巻ID"], 題名=d.get("題名", ""),
-                   レーベル=d.get("レーベル", ""), 著者=d.get("著者", ""),
-                   絵師=d.get("絵師", ""), 発売日=d.get("発売日", ""),
-                   ISBN=d.get("ISBN", ""), 種類=d.get("種類", "本篇"),
-                   作品=d.get("作品", ""), 巻号=d.get("巻号"),
-                   ファイル=[FileRef(**f) for f in d.get("ファイル", [])],
-                   判断=d.get("判断", {}))
+    def from_dict(cls, d: dict) -> Vol:
+        return cls(
+            巻ID=d["巻ID"],
+            題名=d.get("題名", ""),
+            レーベル=d.get("レーベル", ""),
+            著者=d.get("著者", ""),
+            絵師=d.get("絵師", ""),
+            発売日=d.get("発売日", ""),
+            ISBN=d.get("ISBN", ""),
+            種類=d.get("種類", "本篇"),
+            作品=d.get("作品", ""),
+            巻号=d.get("巻号"),
+            ファイル=[FileRef(**f) for f in d.get("ファイル", [])],
+            判断=d.get("判断", {}),
+        )
 
 
 @dataclass
 class Work:
     作品: str
-    表示名: str = ""          # 報告に出すだけ。照合には使わない
-    完結: bool | None = None
-    最終巻: str = ""          # 既に出た巻のうち最新の yyyymmdd
+    表示名: str = ""  # 報告に出すだけ。照合には使わない
+    完結: bool | None = None  # 旧台帳の読込互換。配置には使わない
+    最終巻: str = ""  # 旧台帳の読込互換。新規調査は不要
     判断: dict = field(default_factory=dict)
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Work":
-        return cls(作品=d["作品"], 表示名=d.get("表示名", ""),
-                   完結=d.get("完結"), 最終巻=d.get("最終巻", ""),
-                   判断=d.get("判断", {}))
-
-
-def _months_since(yyyymmdd: str, today: date | None = None) -> int | None:
-    s = (yyyymmdd or "").strip()
-    if len(s) < 6 or not s[:6].isdigit():
-        return None
-    if len(s) == 6:
-        y, m = 2000 + int(s[:2]), int(s[2:4])
-    else:
-        y, m = int(s[:4]), int(s[4:6])
-    t = today or date.today()
-    return (t.year - y) * 12 + (t.month - m)
-
-
-def state_of(w: Work | None, today: date | None = None) -> str:
-    """完結 → 最終巻からの月数 → 未分類。**保存せず毎回計算する**。"""
-    if w is None:
-        return "4. 未分類"
-    if w.完結:
-        return "3. 完結"
-    n = _months_since(w.最終巻, today)
-    if n is None:
-        return "4. 未分類"
-    return "2. 打ち切り" if n > STALE_MONTHS else "1. 連載中"
+    def from_dict(cls, d: dict) -> Work:
+        return cls(
+            作品=d["作品"],
+            表示名=d.get("表示名", ""),
+            完結=d.get("完結"),
+            最終巻=d.get("最終巻", ""),
+            判断=d.get("判断", {}),
+        )
 
 
 def _read(path: Path) -> list:
@@ -209,7 +189,7 @@ def _read(path: Path) -> list:
     if not path.exists():
         return []
     out, bad = [], []
-    for i, x in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    for i, x in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
         if not x.strip():
             continue
         try:
@@ -217,15 +197,17 @@ def _read(path: Path) -> list:
         except json.JSONDecodeError:
             bad.append((i, x[:40]))
     for i, frag in bad:
-        print(f"★ {path.name} の {i} 行目が読めない（飛ばした）: {frag!r}",
-              file=sys.stderr)
+        print(
+            f"★ {path.name} の {i} 行目が読めない（飛ばした）: {frag!r}",
+            file=sys.stderr,
+        )
     return out
 
 
 def _append(path: Path, rows: list) -> int:
     """★ 一行ずつ write して flush する。まとめて書くと、途中で落ちたときに
-      **行の途中で切れた欠片**が残る。実際それで works.jsonl の末尾に
-      `}}` が出来た（複数の周を並行して回していた）。
+    **行の途中で切れた欠片**が残る。実際それで works.jsonl の末尾に
+    `}}` が出来た（複数の周を並行して回していた）。
     """
     if not rows:
         return 0

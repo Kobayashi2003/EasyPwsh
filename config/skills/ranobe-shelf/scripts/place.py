@@ -1,6 +1,6 @@
 """配置 — 台帳のとおりにファイルを動かす。**判断しない**。
 
-    棚 / 状態 / [レーベル][著者][絵師][発売日] 巻の題名.epub
+    棚 / レーベル / [著者][絵師][発売日] 巻の題名.epub
 
 系列のフォルダは作らない。棚は二段しかない。
 
@@ -32,8 +32,19 @@ MOVE, RENAME = "移動", "改名"
 KINDS = (MOVE, RENAME)
 
 # Windows が受け付けない字。**消さずに似た形の全角へ逃がす**
-_FS_MAP = str.maketrans({"\\": "＼", "/": "／", ":": "：", "*": "＊",
-                         "?": "？", '"': "”", "<": "＜", ">": "＞", "|": "｜"})
+_FS_MAP = str.maketrans(
+    {
+        "\\": "＼",
+        "/": "／",
+        ":": "：",
+        "*": "＊",
+        "?": "？",
+        '"': "”",
+        "<": "＜",
+        ">": "＞",
+        "|": "｜",
+    }
+)
 # NFKC が揃えてくれない波ダッシュだけ手で揃える。
 # ★ 長音符 ー(U+30FC) は日本語の字。ここで - に変えると コーヒー が壊れる
 _TILDE = dict.fromkeys(map(ord, "〜﹏"), ord("~"))
@@ -81,9 +92,34 @@ def tags_of(name: str) -> list:
     return re.findall(r"\[([^\[\]]*)\]", m.group(1)) if m else []
 
 
+LAYOUT = "label-v1"
+UNKNOWN_LABEL = "_レーベル未同定"
+
+
+def label_name(v: L.Vol) -> str:
+    return safe(v.レーベル) or UNKNOWN_LABEL
+
+
+def shelf_path(v: L.Vol, suffix: str) -> Path:
+    return paths.shelf() / label_name(v) / file_name(v, suffix)
+
+
+def title_of(v: L.Vol) -> str:
+    title = v.題名.strip()
+    label = unicodedata.normalize("NFKC", v.レーベル).strip()
+    if label:
+        normalized = unicodedata.normalize("NFKC", title)
+        for left, right in (("(", ")"), ("[", "]"), ("【", "】")):
+            normalized = re.sub(
+                r"\s*" + re.escape(left + label + right) + r"$", "", normalized
+            ).rstrip()
+        title = normalized
+    return safe(title)
+
+
 def file_name(v: L.Vol, suffix: str) -> str:
     tags = "".join(f"[{safe(t)}]" for t in v.tags())
-    return safe(tags + " " + v.題名) + suffix
+    return safe(tags + " " + title_of(v)) + suffix
 
 
 SPARE_DIR = "重複版（採用しなかった方）"
@@ -93,20 +129,15 @@ SPARE_README = """このフォルダに在るもの
 同じ巻に実体が二つ以上あったとき、棚に置かなかった方をここへ移してある。
 **消していない。** 名前の末尾の (V000123-1) が、台帳のどの巻から来たかを指す。
 
-採用の選び方（記録/1-壊れ方.md 7-4）:
-
-    ① epub を優先する
-    ② どちらも epub なら、ファイルサイズの大きい方
-    ③ サイズも同じなら、日付の新しい方
+保管版を選ぶ前に、同巻・版表示・全正文・ruby・画像等を比較する。
+形式やサイズだけで内容一致・品質の優越を証明したことにはしない。
 
 選び直したいときは、台帳でその巻を record --id で書き直してから
 plan を作り直せば、こちらが棚へ戻り、今棚に在る方がここへ来る。
 """
 
 
-def build(today=None) -> tuple:
-    root = paths.shelf()
-    works = L.load_works()
+def build() -> tuple:
     ops, stuck = [], []
     for v in L.load_volumes().values():
         cur = v.current()
@@ -118,28 +149,34 @@ def build(today=None) -> tuple:
         if v.判断.get("棚外"):
             continue
         # ★ 揃えたあとで見る。「..」のように、揃えると何も残らない題名がある
-        if not safe(v.題名):
+        if not title_of(v):
             stuck.append(f"{v.巻ID}: 題名が無い（揃えると空になる）")
             continue
-        if v.種類 == "其他":
-            dest = root / L.OTHER_DIR
-        else:
-            dest = root / L.state_of(works.get(v.作品), today)
         src = Path(cur.path)
-        want = dest / file_name(v, src.suffix)
+        want = shelf_path(v, src.suffix)
         if src != want:
             if not src.exists():
                 stuck.append(f"{v.巻ID}: 実体が見つからない {src}")
             else:
-                ops.append(Op(MOVE if src.parent != want.parent else RENAME,
-                              str(src), str(want), v.巻ID))
+                ops.append(
+                    Op(
+                        MOVE if src.parent != want.parent else RENAME,
+                        str(src),
+                        str(want),
+                        v.巻ID,
+                    )
+                )
         # 採用しなかった実体は隔離へ。**消さない**
         # ★ 巻ID は名前の**後ろ**に付ける。前に付けるとタグが頭から外れ、
         #   門②が「タグが減った」と読む
         for i, f in enumerate(v.spare(), 1):
             s = Path(f.path)
-            w = (paths.quarantine() / SPARE_DIR
-                 / (file_name(v, "") + f" ({v.巻ID}-{i}){s.suffix}"))
+            w = (
+                paths.quarantine()
+                / SPARE_DIR
+                / label_name(v)
+                / (file_name(v, "") + f" ({v.巻ID}-{i}){s.suffix}")
+            )
             if s == w:
                 continue
             if not s.exists():
@@ -161,15 +198,16 @@ def order_ops(ops: list) -> tuple:
     for i, o in enumerate(ops):
         j = by_src.get(_norm(o.先))
         if j is not None and j != i:
-            need[i].add(j)          # i の前に j を動かす
+            need[i].add(j)  # i の前に j を動かす
     out, done = [], set()
     while len(out) < len(ops):
-        ready = [i for i in range(len(ops))
-                 if i not in done and not (need[i] - done)]
+        ready = [i for i in range(len(ops)) if i not in done and not (need[i] - done)]
         if not ready:
             stuck = [i for i in range(len(ops)) if i not in done]
-            return out, [f"入れ替えが堂々巡りしている: "
-                         + "、".join(Path(ops[i].先).name for i in stuck[:4])]
+            return out, [
+                "入れ替えが堂々巡りしている: "
+                + "、".join(Path(ops[i].先).name for i in stuck[:4])
+            ]
         for i in ready:
             out.append(ops[i])
             done.add(i)
@@ -194,8 +232,7 @@ def check(ops: list) -> list:
         if low in seen:
             bad.append(f"同じ先へ二つ置こうとしている: {o.先}")
         seen.add(low)
-        if Path(o.先).exists() and low != _norm(o.元 or "") \
-                and low not in vacating:
+        if Path(o.先).exists() and low != _norm(o.元 or "") and low not in vacating:
             bad.append(f"先が塞がっている: {o.先}")
     return bad + order_ops(ops)[1]
 
@@ -209,7 +246,7 @@ _DATE_TAG = re.compile(r"^\d{6}$")
 _VOID_TAG = re.compile(r"^0{6}$")
 
 
-def check_format(ops: list) -> tuple:
+def check_format(ops: list, volumes: dict | None = None) -> tuple:
     """門② — 付け直しで書誌が**痩せて**いないか。(止めるもの, 知らせるもの)。
 
     見るのは **数**。値そのものではない。
@@ -228,24 +265,41 @@ def check_format(ops: list) -> tuple:
       （魔女と傭兵6上/下 を捕まえたのも audit の二つの突き合わせだった）。
     """
     stop, tell = [], []
+    volumes = volumes or {}
     for o in ops:
         if not o.元:
             continue
         a, b = Path(o.元).name, Path(o.先).name
         ta = [x for x in tags_of(a) if not _VOID_TAG.match(x)]
         tb = [x for x in tags_of(b) if not _VOID_TAG.match(x)]
+        # 旧名の文庫タグは、台帳と移動先の文庫が一致する移行だけ除外。
+        v = volumes.get(o.根拠)
+        if v and v.レーベル and ta:
+            label = safe(v.レーベル)
+            dst = Path(o.先)
+            canonical = shelf_path(v, dst.suffix)
+            spare = (
+                paths.quarantine()
+                / SPARE_DIR
+                / label_name(v)
+                / (file_name(v, "") + " (")
+            )
+            is_spare = dst.parent == spare.parent and dst.name.startswith(spare.name)
+            if safe(ta[0]) == label and (dst == canonical or is_spare):
+                ta = ta[1:]
         na = [x for x in ta if not _DATE_TAG.match(x)]
         nb = [x for x in tb if not _DATE_TAG.match(x)]
         if len(nb) < len(na):
-            stop.append(f"タグが {len(na)} 個から {len(nb)} 個へ減る"
-                        f"（{a} -> {b}）")
-        if any(_DATE_TAG.match(x) for x in ta) \
-                and not any(_DATE_TAG.match(x) for x in tb):
+            stop.append(f"タグが {len(na)} 個から {len(nb)} 個へ減る（{a} -> {b}）")
+        if any(_DATE_TAG.match(x) for x in ta) and not any(
+            _DATE_TAG.match(x) for x in tb
+        ):
             stop.append(f"日付が消える（{a} -> {b}）")
         gone = [x for x in na if x not in nb]
         if gone and len(nb) >= len(na):
-            tell.append(f"{'、'.join(gone)} → "
-                        f"{'、'.join(x for x in nb if x not in na)}（{a}）")
+            tell.append(
+                f"{'、'.join(gone)} → {'、'.join(x for x in nb if x not in na)}（{a}）"
+            )
     return stop, tell
 
 
@@ -266,8 +320,13 @@ def check_fresh(stamp: str) -> list:
 
 def save_plan(ops: list, stuck: list) -> Path:
     L.ensure_dirs()
-    p = L.plans_dir() / f"{datetime.now():%Y%m%d-%H%M%S}.jsonl"
-    head = {"作った時": L.now(), "台帳": ledger_stamp(), "置けなかった": stuck}
+    p = L.plans_dir() / f"{datetime.now():%Y%m%d-%H%M%S-%f}.jsonl"
+    head = {
+        "作った時": L.now(),
+        "台帳": ledger_stamp(),
+        "配置規則": LAYOUT,
+        "置けなかった": stuck,
+    }
     with p.open("w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(head, ensure_ascii=False) + "\n")
         for o in ops:
@@ -276,7 +335,7 @@ def save_plan(ops: list, stuck: list) -> Path:
 
 
 def load_plan(p: Path) -> tuple:
-    lines = [x for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
+    lines = [x for x in p.read_text(encoding="utf-8").split("\n") if x.strip()]
     return json.loads(lines[0]), [Op(**json.loads(x)) for x in lines[1:]]
 
 
@@ -293,23 +352,27 @@ def _rewrite_paths(moved: dict) -> int:
         hit = [f for f in v.ファイル if _norm(f.path) in moved]
         if not hit:
             continue
-        v.ファイル = [L.FileRef(f.指紋, moved.get(_norm(f.path), f.path),
-                              f.サイズ, f.更新, f.採用) for f in v.ファイル]
+        v.ファイル = [
+            L.FileRef(
+                f.指紋, moved.get(_norm(f.path), f.path), f.サイズ, f.更新, f.採用
+            )
+            for f in v.ファイル
+        ]
         v.判断 = {**v.判断, "path更新": L.now()}
         rows.append(v)
     return L.append_volumes(rows)
 
 
 def _norm(p: str) -> str:
-    return str(Path(p)).lower()
+    return str(Path(p).resolve()).lower()
 
 
 def _roots() -> set:
     """ここから上は消さない。棚・置き場そのものと、棚の一段目。"""
     shelf, inbox = paths.shelf(), paths.inbox()
     keep = {shelf.resolve(), inbox.resolve()}
-    for s in list(L.STATES) + [L.OTHER_DIR]:
-        keep.add((shelf / s).resolve())
+    if shelf.exists():
+        keep.update(x.resolve() for x in shelf.iterdir() if x.is_dir())
     for q in (shelf, inbox):
         keep.update(x.resolve() for x in q.parents)
     return keep
@@ -344,7 +407,9 @@ def sweep_empty(dirs) -> int:
 
 def apply(p: Path, *, force: bool = False) -> tuple:
     head, ops = load_plan(p)
-    thin, swapped = check_format(ops)
+    if head.get("配置規則") != LAYOUT:
+        return 1, None, ["旧配置規則の計画です。plan を作り直してください"]
+    thin, swapped = check_format(ops, L.load_volumes())
     problems = check(ops) + thin
     if not force:
         problems += check_fresh(head.get("台帳", ""))
@@ -353,7 +418,7 @@ def apply(p: Path, *, force: bool = False) -> tuple:
     if not ops:
         return 0, None, ["動かすものはありません"]
 
-    ops, cyc = order_ops(ops)      # 塞いでいる相手を先に退かす
+    ops, cyc = order_ops(ops)  # 塞いでいる相手を先に退かす
     if cyc:
         return 1, None, cyc
 
@@ -366,21 +431,22 @@ def apply(p: Path, *, force: bool = False) -> tuple:
             try:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(o.元, str(dst))
-            except Exception as e:      # 途中で落ちても、動いた分の取消は残る
+            except Exception as e:  # 途中で落ちても、動いた分の取消は残る
                 err = f"{o.元} を動かせない — {type(e).__name__}: {e}"
                 break
             moved[_norm(o.元)] = str(dst)
             froms.add(Path(o.元).parent)
             u.write(Op(o.種類, str(dst), o.元, o.根拠).to_json() + "\n")
             # 退けた先には、なぜそこに在るかを残す（配置-3）
-            if dst.parent.name == SPARE_DIR:
+            if dst.parent.parent.name == SPARE_DIR:
                 rm = dst.parent / "README.txt"
                 if not rm.exists():
                     rm.write_text(SPARE_README, encoding="utf-8", newline="\n")
 
-    msgs = [f"{len(moved)} 件を実行。台帳の path を "
-            f"{_rewrite_paths(moved)} 行追記",
-            f"空になったフォルダを {sweep_empty(froms)} 畳んだ"]
+    msgs = [
+        f"{len(moved)} 件を実行。台帳の path を {_rewrite_paths(moved)} 行追記",
+        f"空になったフォルダを {sweep_empty(froms)} 畳んだ",
+    ]
     # 門②が通した「値の入れ替わり」を見せる。止めはしないが、黙って
     # 通すと台帳の取り違えが名前に流れ込んだことに誰も気づかない
     if swapped:
@@ -389,14 +455,20 @@ def apply(p: Path, *, force: bool = False) -> tuple:
         if len(swapped) > 8:
             msgs.append(f"   … 他 {len(swapped) - 8} 件")
     if err:
-        return 1, up, [f"★ 途中で止まった: {err}",
-                       f"動いた {len(moved)} 件の取消は {up}"] + msgs
+        return (
+            1,
+            up,
+            [f"★ 途中で止まった: {err}", f"動いた {len(moved)} 件の取消は {up}"] + msgs,
+        )
     return 0, up, msgs
 
 
 def undo(p: Path) -> tuple:
-    ops = [Op(**json.loads(x))
-           for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
+    ops = [
+        Op(**json.loads(x))
+        for x in p.read_text(encoding="utf-8").split("\n")
+        if x.strip()
+    ]
     moved, froms, n, blocked = {}, set(), 0, []
     for o in reversed(ops):
         if not o.先 or not Path(o.元).exists():

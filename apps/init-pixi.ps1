@@ -27,7 +27,7 @@ if (-not (Get-Command "pixi" -ErrorAction SilentlyContinue)) {
 
 # Cache the generated completion script; regenerate only when pixi.exe changes.
 # Avoids spawning pixi (~160ms) on every shell start.
-$__pixiDir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
+$__pixiDir   = $global:EASYPWSH_CACHE_DIR
 $__pixiCache = Join-Path $__pixiDir ('pixi-completion-utf8-ps{0}.ps1' -f $PSVersionTable.PSVersion.Major)
 $__pixiExe   = (Get-Command pixi -CommandType Application | Select-Object -First 1).Source
 if (-not (Test-Path $__pixiCache) -or

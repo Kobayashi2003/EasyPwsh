@@ -35,26 +35,55 @@ _ITEM = re.compile(r"<item\b[^>]*>", re.I)
 _ATTR = re.compile(r'(\w[\w:-]*)="([^"]*)"')
 
 NAME_HINT = re.compile(r"colophon|okuduke|okuzuke|奥付|copyright|caution", re.I)
-WORDS = ("Ⓒ", "発行", "イラスト", "株式会社", "カバー", "禁じ", "配信",
-         "電子書籍", "発行者", "©", "初版", "転載", "著作権", "印刷",
-         "刊行", "電子版", "発行所", "Printed in Japan", "複写", "定価",
-         "落丁", "乱丁", "ISBN")
+WORDS = (
+    "Ⓒ",
+    "発行",
+    "イラスト",
+    "株式会社",
+    "カバー",
+    "禁じ",
+    "配信",
+    "電子書籍",
+    "発行者",
+    "©",
+    "初版",
+    "転載",
+    "著作権",
+    "印刷",
+    "刊行",
+    "電子版",
+    "発行所",
+    "Printed in Japan",
+    "複写",
+    "定価",
+    "落丁",
+    "乱丁",
+    "ISBN",
+)
 WORDS_MIN = 3
 
-_LABEL_TAIL = (r"文庫|ノベルス|ノベルズ|ブックス|BOOKS|novels|新書|"
-               r"コミックス|文芸|ノベル")
+_LABEL_TAIL = (
+    r"文庫|ノベルス|ノベルズ|ブックス|BOOKS|novels|新書|"
+    r"コミックス|文芸|ノベル"
+)
 _L_BEFORE = re.compile(
-    rf"([一-龥ぁ-んァ-ヶーA-Za-z0-9・＆&]{{2,16}}(?:{_LABEL_TAIL}))\s*[『「]")
+    rf"([一-龥ぁ-んァ-ヶーA-Za-z0-9・＆&]{{2,16}}(?:{_LABEL_TAIL}))\s*[『「]"
+)
 _L_ALONE = re.compile(
-    rf"(?:^|\s)([一-龥ぁ-んァ-ヶーA-Za-z0-9・＆&]{{2,16}}(?:{_LABEL_TAIL}))(?:\s|$)")
+    rf"(?:^|\s)([一-龥ぁ-んァ-ヶーA-Za-z0-9・＆&]{{2,16}}(?:{_LABEL_TAIL}))(?:\s|$)"
+)
 
-_D_PAPER = re.compile(r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"
-                      r"[^\d]{0,12}?(?:初版|第一刷|第１刷)")
+_D_PAPER = re.compile(
+    r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"
+    r"[^\d]{0,12}?(?:初版|第一刷|第１刷)"
+)
 _D_ANY = re.compile(r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日")
 
 ISBN_RE = re.compile(
     r"ISBN[\s:：]*((?:97[89])[-\s]?(?:\d[-\s]?){9}\d)"
-    r"|ISBN[\s:：]*((?:\d[-\s]?){9}[\dXx])", re.I)
+    r"|ISBN[\s:：]*((?:\d[-\s]?){9}[\dXx])",
+    re.I,
+)
 
 
 def _text_of(html: str) -> str:
@@ -71,11 +100,11 @@ def _flat(html: str) -> str:
 
 def _clean(s: str) -> str:
     """★ 実体参照をほどく。ほどかないと OPF の題名に `&lt;物語&gt;` が
-      そのまま残り、杜のどの行とも当たらない。本文を読む `_text_of` は
-      実体参照を落としていたのに、**題名を読むここだけ落としていなかった**
-      — 同じ規則が二か所にあり、片方だけ直っていた形（壊れ方 5 章）。
-      落とすのではなく**ほどく**。`&amp;` は本当に `&` を意味するので、
-      落とすと「ビルド&クラフト」が「ビルドクラフト」に化ける。
+    そのまま残り、杜のどの行とも当たらない。本文を読む `_text_of` は
+    実体参照を落としていたのに、**題名を読むここだけ落としていなかった**
+    — 同じ規則が二か所にあり、片方だけ直っていた形（壊れ方 5 章）。
+    落とすのではなく**ほどく**。`&amp;` は本当に `&` を意味するので、
+    落とすと「ビルド&クラフト」が「ビルドクラフト」に化ける。
     """
     return _SPACE.sub(" ", unescape(_TAG.sub("", s))).strip()
 
@@ -128,19 +157,24 @@ def _read_opf(z: zipfile.ZipFile) -> tuple:
     for idref in _SPINE.findall(opf):
         h = href.get(idref)
         if h:
-            h = unquote(h)      # href は URL エンコードされていることがある
+            h = unquote(h)  # href は URL エンコードされていることがある
             order.append(f"{base}/{h}" if base else h)
     return meta, order
 
 
 def _colophon(pages: list) -> dict:
-    out = {"読めた": False, "レーベル": "", "紙の日付": "", "電子の日付": "",
-           "ISBN": "", "頁": ""}
+    out = {
+        "読めた": False,
+        "レーベル": "",
+        "紙の日付": "",
+        "電子の日付": "",
+        "ISBN": "",
+        "頁": "",
+    }
     for name, raw in reversed(pages):
         t = _flat(raw)
         hinted = bool(NAME_HINT.search(name))
-        n_words = sum(1 for w in WORDS
-                      if unicodedata.normalize("NFKC", w) in t)
+        n_words = sum(1 for w in WORDS if unicodedata.normalize("NFKC", w) in t)
         if not hinted and n_words < WORDS_MIN:
             continue
         if not out["読めた"]:
@@ -174,11 +208,13 @@ _NOT_BODY = re.compile(r"目次|contents|navigation|奥付|colophon|表紙|cover
 #   多いのは二つ — 「本書（電子版）に掲載されている…」30 件、
 #   「本作品の全部または一部を無断で…」24 件。括弧の中身は版元で違うので
 #   `本書（…）に掲載されて` と幅を持たせる。
-_NOTICE = re.compile(r"^(?:ご利用上の注意|本作品を示す|本電子書籍を示す"
-                     r"|本書[（(][^）)]{0,8}[）)]?に掲載されて|本書に掲載されて"
-                     r"|本作品の全部|本作品は、?縦書き"
-                     r"|本コンテンツは|この作品の全部"
-                     r"|この作品はフィクション|著作権)")
+_NOTICE = re.compile(
+    r"^(?:ご利用上の注意|本作品を示す|本電子書籍を示す"
+    r"|本書[（(][^）)]{0,8}[）)]?に掲載されて|本書に掲載されて"
+    r"|本作品の全部|本作品は、?縦書き"
+    r"|本コンテンツは|この作品の全部"
+    r"|この作品はフィクション|著作権)"
+)
 # 柱の頭に付く組版の記号。`c1A` `c9` のほか `part0007` の形もある
 _HEAD_MARK = re.compile(r"^(?:part\d+|c[0-9A-Za-z]{1,4}|[※◆■])")
 
@@ -209,9 +245,12 @@ def read(p: Path) -> dict:
     """一冊読む。暗号化 zip の RuntimeError なども全部ここで受ける。"""
     out = {
         "ファイル名": p.name,
-        "opf": {}, "奥付": {"読めた": False}, "柱": "",
+        "opf": {},
+        "奥付": {"読めた": False},
+        "柱": "",
         "本文": {"読めた": False, "字数": 0, "画像": 0, "頁": 0},
-        "表紙あり": False, "読めない理由": "",
+        "表紙あり": False,
+        "読めない理由": "",
     }
     if p.suffix.lower() != ".epub":
         out["読めない理由"] = f"{p.suffix} は中身を読めない"
@@ -221,8 +260,9 @@ def read(p: Path) -> dict:
             meta, order = _read_opf(z)
             names = set(z.namelist())
             if not order:
-                order = sorted(n for n in names
-                               if n.lower().endswith((".xhtml", ".html", ".htm")))
+                order = sorted(
+                    n for n in names if n.lower().endswith((".xhtml", ".html", ".htm"))
+                )
             pages, chars, images = [], 0, 0
             for n in order:
                 if n not in names:
@@ -236,12 +276,16 @@ def read(p: Path) -> dict:
                 images += len(_IMG.findall(raw))
             out["opf"] = meta
             out["奥付"] = _colophon(pages)
-            out["本文"] = {"読めた": bool(pages), "字数": chars,
-                          "画像": images, "頁": len(pages)}
+            out["本文"] = {
+                "読めた": bool(pages),
+                "字数": chars,
+                "画像": images,
+                "頁": len(pages),
+            }
             out["柱"] = _running_head(pages)
             out["表紙あり"] = any(
-                n.lower().endswith((".jpg", ".jpeg", ".png")) for n in names)
+                n.lower().endswith((".jpg", ".jpeg", ".png")) for n in names
+            )
     except Exception as e:
         out["読めない理由"] = f"{type(e).__name__}: {e}"
     return out
-

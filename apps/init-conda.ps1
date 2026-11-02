@@ -26,7 +26,7 @@ New-ManagedSymlink -Path $conda_conf_current_user -Target $conda_conf
 function global:conda {
     Remove-Item Function:\conda -Force -ErrorAction SilentlyContinue
     $__conda_exe   = (Get-Command conda -CommandType Application | Select-Object -First 1).Source
-    $__conda_dir   = Join-Path $global:CURRENT_SCRIPT_DIRECTORY 'downloads\cache'
+    $__conda_dir   = $global:EASYPWSH_CACHE_DIR
     $__conda_cache = Join-Path $__conda_dir ('conda-hook-utf8-ps{0}.ps1' -f $PSVersionTable.PSVersion.Major)
     if (-not (Test-Path $__conda_cache) -or
         ((Get-Item $__conda_exe).LastWriteTimeUtc -gt (Get-Item $__conda_cache).LastWriteTimeUtc)) {

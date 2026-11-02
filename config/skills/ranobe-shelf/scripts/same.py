@@ -7,7 +7,6 @@
 ここに在って良いもの / 良くないもの
 --------------------------------
     良い   完全一致・ISBN・（作品, 巻号）といった**照らせば決まる**突合
-           規則 7-4 のような**文書に書いてある**優先順位
     良くない  証拠の強さの見積り、閾値、「たぶんこれだろう」
            — それは人と AI が材料を見て決めること（記録/1-壊れ方.md 1-9）
 
@@ -29,6 +28,7 @@ import re
 import unicodedata
 
 import mori as M
+
 
 def key(title: str) -> str:
     """突合に使う題名の鍵。**杜を引くときと同じ揃え方**を使う。
@@ -71,7 +71,7 @@ def head_number(title: str) -> tuple:
     m = _PRINTED.search(t)
     if not m:
         return t, None
-    head = t[:m.start()].strip()
+    head = t[: m.start()].strip()
     head = re.sub(r"[#＃]\s*$", "", head).strip()
     return head, float(m.group(1))
 
@@ -101,8 +101,9 @@ def index(vols: list) -> dict:
     return {"isbn": by_isbn, "num": by_num, "title": by_title, "head": by_head}
 
 
-def volume_of(idx: dict, isbn: str = "", work: str = "", num=None,
-              title: str = "") -> tuple:
+def volume_of(
+    idx: dict, isbn: str = "", work: str = "", num=None, title: str = ""
+) -> tuple:
     """台帳のどの巻かを返す。`(巻 or None, どの証拠で当たったか)`。
 
     絞れなければ `(None, 理由)`。**候補を並べて返さない** — 候補が二つ
@@ -138,8 +139,9 @@ def parent_of(idx: dict, head: str, num=None, kind: str = "本篇") -> tuple:
     if not k or len(k) < 4:
         return None, "親の題名を切り出せない（短すぎる）"
     # 題名そのままで当たらなければ、副題を落とした緩い引き方も見る
-    cand = [v for v in (idx["title"].get(k) or idx["head"].get(k, []))
-            if v.種類 == kind]
+    cand = [
+        v for v in (idx["title"].get(k) or idx["head"].get(k, [])) if v.種類 == kind
+    ]
     if not cand:
         return None, "台帳に同じ題名の巻が無い（親を持っていない）"
     if num is None:
@@ -152,21 +154,3 @@ def parent_of(idx: dict, head: str, num=None, kind: str = "本篇") -> tuple:
     if hit:
         return None, f"表紙の巻号 {num:g} の巻が台帳に {len(hit)} 冊"
     return None, f"表紙に巻号 {num:g} と書かれた巻が台帳に無い"
-
-
-def better(a_path, a_size: int, b_path, b_size: int) -> bool:
-    """規則 7-4 — 同じ巻の実体が二つあるとき、a を採るなら True。
-
-        ① epub を優先する（他の形は棚に並べても開けないことがある）
-        ② 大きい方を採る（画像の解像度・挿絵の有無で差が出る）
-        ③ それでも同じなら先に在った方（b）を動かさない
-
-    ★ ここに「新しい方」は入れない。配信し直しで日付だけ新しい、
-      中身の薄い版が出回っている（実測 — 同じ巻で 1/4 の字数の
-      試し読みが「新しい版」として来たことがある）。
-    """
-    ae = str(a_path).lower().endswith(".epub")
-    be = str(b_path).lower().endswith(".epub")
-    if ae != be:
-        return ae
-    return a_size > b_size
