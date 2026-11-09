@@ -84,6 +84,50 @@ $sandbox = Join-Path ([IO.Path]::GetTempPath()) ('EasyPwsh-tests-' + [guid]::New
 New-Item -ItemType Directory -Path $sandbox | Out-Null
 $originalLocation = Get-Location
 try {
+    & {
+        $claudeHome = Join-Path $sandbox 'Claude-home'
+        $settingsPath = Join-Path $claudeHome '.claude\settings.json'
+        $savedUserProfile = $env:USERPROFILE
+        $savedScriptDirectory = $global:CURRENT_SCRIPT_DIRECTORY
+        function Get-Command {
+            param($Name, $CommandType)
+            if ($Name -eq 'claude' -and -not $CommandType) { $true }
+        }
+        try {
+            $env:USERPROFILE = $claudeHome
+            $global:CURRENT_SCRIPT_DIRECTORY = $sandbox
+            $initClaude = Join-Path $root 'apps/init-claude.ps1'
+            & $initClaude
+            Assert ((Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json).statusLine.type -eq 'command') 'Claude statusLine missing on first startup'
+
+            foreach ($empty in @('', 'null', (@('null', 'null', '') -join [Environment]::NewLine))) {
+                [IO.File]::WriteAllText($settingsPath, $empty)
+                $warnings = @(& $initClaude 3>&1)
+                Assert ($warnings.Count -eq 0) 'Empty or null-only Claude settings should recover without a warning'
+                Assert ((Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json).statusLine.type -eq 'command') 'Empty or null-only Claude settings were not initialized'
+            }
+
+            [IO.File]::WriteAllText($settingsPath, '{"env":{"EXAMPLE":"value"}}')
+            & $initClaude
+            $configured = Get-Content -LiteralPath $settingsPath -Raw
+            $settings = $configured | ConvertFrom-Json
+            Assert ($settings.env.EXAMPLE -eq 'value' -and $settings.statusLine.command -like '*statusline.ps1*') 'Claude initialization must preserve existing settings'
+            $lastWrite = [IO.File]::GetLastWriteTimeUtc($settingsPath)
+            & $initClaude
+            Assert ([IO.File]::GetLastWriteTimeUtc($settingsPath) -eq $lastWrite) 'Claude settings must not be rewritten when current'
+
+            foreach ($invalid in @('{"env":', 'null {"env":{}}', '[{"env":{}}]')) {
+                [IO.File]::WriteAllText($settingsPath, $invalid)
+                $warnings = @(& $initClaude 3>&1)
+                Assert ($warnings.Count -eq 1 -and $warnings[0] -is [Management.Automation.WarningRecord]) 'Invalid Claude settings must produce a warning'
+                Assert ([IO.File]::ReadAllText($settingsPath) -ceq $invalid) 'Invalid Claude settings must be preserved'
+            }
+        } finally {
+            $env:USERPROFILE = $savedUserProfile
+            $global:CURRENT_SCRIPT_DIRECTORY = $savedScriptDirectory
+        }
+    }
+
     . (Join-Path $root 'functions/cc.ps1')
     $script:clearCount = 0
     function Clear-Host { $script:clearCount++ }

@@ -61,13 +61,33 @@ if filereadable("/etc/vim/vimrc.local")
 endif
 
 syntax on " turn on syntax highlighting
+
+if has('termguicolors') && has('vcon')
+	set termguicolors
+endif
+set background=dark
+
+function! s:ConfigureCursorLine()
+	highlight CursorLine term=NONE cterm=NONE gui=NONE
+	if empty(synIDattr(hlID('CursorLine'), 'bg', 'cterm'))
+		execute 'highlight CursorLine ctermbg=' . (&background ==# 'dark' ? 'DarkBlue' : 'LightGray')
+	endif
+	if empty(synIDattr(hlID('CursorLine'), 'bg', 'gui'))
+		execute 'highlight CursorLine guibg=' . (&background ==# 'dark' ? '#303030' : '#e8e8e8')
+	endif
+endfunction
+
+augroup EasyPwshColors
+	autocmd!
+	autocmd ColorScheme * call <SID>ConfigureCursorLine()
+augroup END
+colorscheme ron
+
 augroup CursorLineOnlyInActiveWindow
 	autocmd!
 	autocmd VimEnter,WinEnter,BufWinEnter * setlocal cursorline
 	autocmd WinLeave * setlocal nocursorline
 augroup END
-
-set t_Co=256 " set the force 256 colors
 
 "---------------------
 " Basic editing config

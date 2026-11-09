@@ -15,27 +15,53 @@ $statusline_script    = Join-Path $global:CURRENT_SCRIPT_DIRECTORY -ChildPath "c
 $statusline_shell     = Join-Path $PSHOME $(if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell.exe' } else { 'pwsh.exe' })
 $statusline_command   = "`"$statusline_shell`" -NoLogo -NoProfile -File `"$statusline_script`""
 
-if (Test-Path $claude_settings_file) {
-    $settings = Get-Content $claude_settings_file -Raw | ConvertFrom-Json
-} else {
-    New-Item -Path $claude_settings_file -ItemType File -Force | Out-Null
+try {
+    $settings_file_exists = Test-Path -LiteralPath $claude_settings_file -ErrorAction Stop
     $settings = [PSCustomObject]@{}
-}
+    if ($settings_file_exists) {
+        $settings_json = Get-Content -LiteralPath $claude_settings_file -Raw -Encoding UTF8 -ErrorAction Stop
+        # Null-only files contain no settings to preserve, even when null was written more than once.
+        if (-not [string]::IsNullOrWhiteSpace($settings_json) -and $settings_json -cnotmatch '\A\s*null(?:\s+null)*\s*\z') {
+            if (-not $settings_json.TrimStart().StartsWith('{')) {
+                throw 'Expected a JSON object.'
+            }
+            $settings = ConvertFrom-Json -InputObject $settings_json -ErrorAction Stop
+        }
+    }
 
-$desired = [PSCustomObject]@{
-    type            = 'command'
-    command         = $statusline_command
-    refreshInterval = 30
-}
+    $desired = [PSCustomObject]@{
+        type            = 'command'
+        command         = $statusline_command
+        refreshInterval = 30
+    }
 
-$current_json = if ($settings.PSObject.Properties['statusLine']) {
-    $settings.statusLine | ConvertTo-Json -Compress
-} else { '' }
-$desired_json = $desired | ConvertTo-Json -Compress
+    $current_json = $settings.statusLine | ConvertTo-Json -Compress
+    $desired_json = $desired | ConvertTo-Json -Compress
 
-if ($current_json -ne $desired_json) {
-    $settings | Add-Member -NotePropertyName 'statusLine' -NotePropertyValue $desired -Force
-    $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $claude_settings_file -Encoding UTF8
+    if ($current_json -cne $desired_json) {
+        $settings | Add-Member -NotePropertyName 'statusLine' -NotePropertyValue $desired -Force
+        $updated_json = ($settings | ConvertTo-Json -Depth 100 -ErrorAction Stop) + [Environment]::NewLine
+        [void][IO.Directory]::CreateDirectory((Split-Path -Parent $claude_settings_file))
+
+        # Write the complete JSON before publishing it. Follow user-managed links in place.
+        if ($settings_file_exists -and (Get-Item -LiteralPath $claude_settings_file -Force -ErrorAction Stop).LinkType) {
+            [IO.File]::WriteAllText($claude_settings_file, $updated_json)
+        } else {
+            $temp_file = "$claude_settings_file.$([guid]::NewGuid()).tmp"
+            try {
+                [IO.File]::WriteAllText($temp_file, $updated_json)
+                if ($settings_file_exists) {
+                    [IO.File]::Replace($temp_file, $claude_settings_file, [NullString]::Value)
+                } else {
+                    [IO.File]::Move($temp_file, $claude_settings_file)
+                }
+            } finally {
+                [IO.File]::Delete($temp_file)
+            }
+        }
+    }
+} catch {
+    Write-Warning "Could not configure Claude Code statusLine in '$claude_settings_file'. Check that the file contains a valid JSON object and is writable."
 }
 #endregion
 
